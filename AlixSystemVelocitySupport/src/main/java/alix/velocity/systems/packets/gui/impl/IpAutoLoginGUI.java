@@ -11,6 +11,7 @@ import alix.velocity.utils.user.VerifiedUser;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
 import ua.nanit.limbo.connection.login.gui.LimboAuthBuilder;
+import ua.nanit.limbo.connection.login.gui.bedrock.AbstractAuthBuilder;
 
 import java.util.Arrays;
 
@@ -30,7 +31,7 @@ public final class IpAutoLoginGUI extends AlixGUI {
         Arrays.fill(items, BACKGROUND_ITEM);
         PersistentUserData data = gui.getData();
 
-        ItemStack questionMark = LimboAuthBuilder.ofSkull(Messages.get("gui-ip-autologin-question-mark"), "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmFkYzA0OGE3Y2U3OGY3ZGFkNzJhMDdkYTI3ZDg1YzA5MTY4ODFlNTUyMmVlZWQxZTNkYWYyMTdhMzhjMWEifX19");
+        ItemStack questionMark = AbstractAuthBuilder.ofSkull(Messages.get("gui-ip-autologin-question-mark"), "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmFkYzA0OGE3Y2U3OGY3ZGFkNzJhMDdkYTI3ZDg1YzA5MTY4ODFlNTUyMmVlZWQxZTNkYWYyMTdhMzhjMWEifX19");
         String[] lore = Messages.get("gui-ip-autologin-what-is-this").split(" -nl ");
         items[1] = new GUIItem(setLore(questionMark, lore));
 
@@ -55,8 +56,5 @@ public final class IpAutoLoginGUI extends AlixGUI {
 
     public static void add(VerifiedUser user) {
         AlixScheduler.async(() -> new IpAutoLoginGUI(user).map());
-    }
-
-    public static void init() {
     }
 }

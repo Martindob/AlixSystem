@@ -80,7 +80,7 @@ public final class VerifiedUser implements AlixCommonUser {
         PacketUtils.write(this.channel, this.version, snapshot);
     }
 
-    public void writeAndFlush(PacketSnapshot snapshot) {
+    public void write(PacketSnapshot snapshot) {
         if (this.isEncrypted) return;
         this.write(snapshot);
         this.channel.flush();
@@ -99,6 +99,6 @@ public final class VerifiedUser implements AlixCommonUser {
     public void closeInventory() {
         this.user.closeInventory();
         /*if (this.isEncrypted) this.user.closeInventory();
-        else this.writeAndFlush(LoginState.CLOSE_INV);*/
+        else this.write(LoginState.CLOSE_INV);*/
     }
 }

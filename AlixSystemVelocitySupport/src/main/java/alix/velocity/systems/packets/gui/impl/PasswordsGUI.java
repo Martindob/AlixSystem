@@ -145,7 +145,7 @@ public final class PasswordsGUI extends AlixGUI {
                 this.user.writePacketSilently(SoundPackets.wrapperOf(Sounds.ENTITY_PLAYER_LEVELUP));
                 user.user.sendMessage(appliedChanges);
                 user.closeInventory();
-            } else this.user.sendPacketSilently(SoundPackets.wrapperOf(Sounds.ENTITY_VILLAGER_NO));//this.user.writeAndFlush(SoundPackets.VILLAGER_NO);//the tryApply method will provide the text feedback
+            } else this.user.sendPacketSilently(SoundPackets.wrapperOf(Sounds.ENTITY_VILLAGER_NO));//this.user.write(SoundPackets.VILLAGER_NO);//the tryApply method will provide the text feedback
         });
 
         return items;

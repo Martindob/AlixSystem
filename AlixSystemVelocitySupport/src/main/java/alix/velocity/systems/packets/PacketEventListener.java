@@ -10,6 +10,7 @@ import alix.common.data.premium.PremiumDataCache;
 import alix.common.data.premium.VerifiedCache;
 import alix.common.login.LoginVerdict;
 import alix.common.login.premium.*;
+import alix.common.messages.Messages;
 import alix.common.scheduler.AlixScheduler;
 import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.config.ConfigParams;
@@ -36,6 +37,7 @@ import com.velocitypowered.api.event.Continuation;
 import io.netty.channel.Channel;
 import ua.nanit.limbo.NanoLimbo;
 import ua.nanit.limbo.connection.login.LoginInfo;
+import ua.nanit.limbo.connection.motd.MotdHandler;
 import ua.nanit.limbo.connection.pipeline.encryption.CipherHandler;
 import ua.nanit.limbo.protocol.packets.PacketUtils;
 import ua.nanit.limbo.protocol.packets.login.disconnect.PacketLoginDisconnect;
@@ -57,18 +59,23 @@ import static alix.common.utils.config.ConfigProvider.config;
 
 public final class PacketEventListener extends PacketListenerAbstract {
 
+
     private static final PacketSnapshot
-            illegalEncryptionState = PacketLoginDisconnect.snapshot("§cIllegal encryption state"),
-            invalidNonce = PacketLoginDisconnect.snapshot("§cInvalid nonce"),
-            cannotDecryptSharedSecret = PacketLoginDisconnect.snapshot("§cCannot decrypt shared secret"),
-            invalidSession = PacketLoginDisconnect.snapshot("§cInvalid session"),
-            cannotVerifySession = PacketLoginDisconnect.snapshot("§cCannot verify session"),
-            couldNotEnableEncryption = PacketLoginDisconnect.snapshot("§cCouldn't enable encryption");
-    /*internalErrorEncryption = PacketLoginDisconnect.snapshot("§cInternal error (Encryption)"),
-    cachedNameDoesNotMatch = PacketLoginDisconnect.snapshot("§cCached name does not match");*/
+            illegalEncryptionState = disconnect("premium-disconnect-illegal-encryption-state"),
+            invalidNonce = disconnect("premium-disconnect-invalid-nonce"),
+            cannotDecryptSharedSecret = disconnect("premium-disconnect-cannot-decrypt-secret"),
+            invalidSession = disconnect("premium-disconnect-invalid-session"),
+            cannotVerifySession = disconnect("premium-disconnect-cannot-verify-session"),
+            internalErrorEncryption = disconnect("premium-disconnect-internal-error"),
+            couldNotEnableEncryption = disconnect("premium-disconnect-cannot-enable-encryption");
+
     public static final Map<Channel, ClientPublicKey> publicKeys = new ConcurrentHashMap<>();
     private static final KeyPair keyPair = PremiumVerifier.keyPair;
     private static final boolean debugPackets = NanoLimbo.debugServerPackets;
+
+    private static PacketSnapshot disconnect(String msgId) {
+        return PacketLoginDisconnect.snapshot(Messages.get(msgId));
+    }
 
     @Override
     public void onUserConnect(UserConnectEvent event) {
@@ -296,6 +303,11 @@ public final class PacketEventListener extends PacketListenerAbstract {
         if (debugPackets) Main.logInfo("OUT: " + event.getPacketType());
         Channel channel = (Channel) event.getChannel();
         var user = event.getUser();
+
+        if (event.getPacketType() == PacketType.Status.Server.RESPONSE) {
+            MotdHandler.feed(event);
+            return;
+        }
 
         if (event.getPacketType() == PacketType.Configuration.Server.PLUGIN_MESSAGE) {
             var connection = AlixVelocityLimbo.LIMBO_CONNECTIONS.get(channel);

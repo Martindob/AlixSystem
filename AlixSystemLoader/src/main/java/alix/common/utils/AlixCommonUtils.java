@@ -103,11 +103,11 @@ public final class AlixCommonUtils {
         String s = Integer.toString(i);
 
         int toEat = i < 0 ? 4 : 3;
-        for (int j = 0; j < s.length(); j++) {
+        for (int j = s.length() - 1; j >= 0; j--) {
             char c = s.charAt(j);
-            if (toEat-- == 0 && j != s.length() - 1) {
+            if (toEat-- == 0) {
                 sb.append(',');
-                toEat = 3;
+                toEat = 2;//3-1
             }
             sb.append(c);
         }

@@ -3,6 +3,8 @@ package alix.velocity.utils.file;
 import alix.common.antibot.captcha.secrets.files.UserTokensFileManager;
 import alix.common.antibot.firewall.FireWallManager;
 import alix.common.data.file.UserFileManager;
+import alix.common.data.security.email.EmailConfig;
+import alix.common.data.settings.ServerSettingsManager;
 import alix.common.scheduler.AlixScheduler;
 
 import java.util.concurrent.TimeUnit;
@@ -14,6 +16,8 @@ public final class FileManager {
     public static void loadFiles() {
         UserFileManager.init();
         UserTokensFileManager.init();
+        EmailConfig.init();
+        ServerSettingsManager.init();
         if (antiBotService) FireWallManager.init();
 
         AlixScheduler.repeatAsync(FileManager::onAsyncSave, 1, TimeUnit.MINUTES);

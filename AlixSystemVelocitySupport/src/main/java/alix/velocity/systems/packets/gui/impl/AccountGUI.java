@@ -1,5 +1,6 @@
 package alix.velocity.systems.packets.gui.impl;
 
+import alix.common.login.skull.SkullTextures;
 import alix.common.messages.Messages;
 import alix.common.packets.inventory.AlixInventoryType;
 import alix.velocity.systems.packets.gui.AlixGUI;
@@ -8,6 +9,8 @@ import alix.velocity.systems.packets.gui.inv.InventoryGui;
 import alix.velocity.utils.user.VerifiedUser;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
+import ua.nanit.limbo.connection.login.gui.LimboAuthBuilder;
+import ua.nanit.limbo.connection.login.gui.bedrock.AbstractAuthBuilder;
 
 import java.util.Arrays;
 
@@ -39,8 +42,8 @@ public abstract class AccountGUI extends AlixGUI {
             ItemStack i2 = create(ItemTypes.NETHER_STAR, Messages.get("gui-account-login-settings"));
             items[1] = new GUIItem(i2, inv -> LoginSettingsGUI.add(this.user, this));
 
-            //ItemStack i3 = LimboAuthBuilder.ofSkull(Messages.get("gui-account-google-authenticator"), SkullTextures.GOOGLE_AUTH);
-            //items[2] = new GUIItem(i3, inv -> GoogleAuthGUI.add(this.user));
+            ItemStack i3 = AbstractAuthBuilder.ofSkull(Messages.get("gui-account-google-authenticator"), SkullTextures.GOOGLE_AUTH);
+            items[2] = new GUIItem(i3, inv -> GoogleAuthGUI.add(this.user, this));
 
             return items;
         }

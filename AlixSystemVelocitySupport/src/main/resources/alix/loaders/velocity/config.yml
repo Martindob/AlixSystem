@@ -1,7 +1,8 @@
 #------------------------------------------------------------------------------------#
 #                 This is the config.yml file for AlixVelocity.                      #
-#                  Currently there is no proper documentation.                       #
-#             Support will be provided at https://discord.com/invite/bWjmA7s3xV      #
+#                   A partially finished documentation can be                        $
+#          found at https://github.com/ShadowOfHeaven-Me/AlixSystem/wiki             #
+#         Support will be provided at https://discord.com/invite/bWjmA7s3xV          #
 #------------------------------------------------------------------------------------#
 
 
@@ -32,7 +33,7 @@ validate-name: true
 #Defines whether a player of an already existing player's nickname, ignoring casing, should be allowed to join pre-register
 # true -> Allow 'Marcos' & 'marcos' to coexist
 # false -> Disallow
-allow-case-sensitive-nicknames: true
+allow-case-sensitive-nicknames: false
 
 
 #----------------------------------------------#
@@ -47,10 +48,15 @@ allow-case-sensitive-nicknames: true
 # anvil - The user registers/logs in using an anvil rename gui
 # pin - The user registers/logs in using a pin gui
 password-type: command
+#Defines whether premium players should be given their equivalent mojang-assigned uuid (their data will persist between name changes)
+#Possible values:
+# true -> always assign a premium uuid to premium players (good if you don't already have premium players with an offline uuid)
+# false -> never assign premium uuid
+premium-uuid: false
 #Defines how long (in seconds) should be a player allowed to be on the server not logged in
 max-login-time: 75
 #Defines how many attempts does a user have when entering his password (setting it too high could be risky because of password crackers)
-max-login-attempts: 2
+max-login-attempts: 4
 #Defines whether all players (premium included) should be required to set up a password (instead of being automatically registered)
 require-register-from-all: false
 #Defines whether the registering user should have to repeat the password he's trying to set whilst registering
@@ -104,7 +110,7 @@ password-hash-type: 3
 #Defines whether a non-premium, server-client connection should be encrypted - helps mitigate MITM attacks, but slightly increases CPU usage
 # always - All client connections will always be requested to encrypt their connection (some pre-1.20.5 cracked clients might disconnect because of this)
 # safe - Only 1.20.5+ client connections will be encrypted (no risk of disconnecting)
-# never - Will never try to enable encryption (Beyond side effects of checking the client's premium status)
+# never - Will never try to enable encryption (Besides side effects of checking the client's premium status)
 encrypt-connection: safe
 #Defines the commands invoked after a successful, manual register. Specified in the form of a list. Replaces all %name% with the player's name. If "-p" is placed at the end of a command it will be invoked with the player as the sender.
 #Invoked after a manual register
@@ -146,3 +152,7 @@ transfer-hostname: ""
 transfer-port:
 #Defines whether debug messages should be sent (usually helps the developer in identifying the source of an error)
 debug: false
+#Whether the motd should be cached (and ping responses prepended & sent early), in order to optimize ping requests (currently expires after 6 seconds)
+optimize-pings: true
+#Whether or not user emails should be saved in an encrypted form. You can set this to false in case you need it in raw text
+encrypt-emails: true

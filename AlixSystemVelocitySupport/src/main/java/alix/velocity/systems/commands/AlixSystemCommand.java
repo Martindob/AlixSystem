@@ -3,6 +3,7 @@ package alix.velocity.systems.commands;
 import alix.common.antibot.algorithms.any.PanicModeManager;
 import alix.common.antibot.epoll.Telemetry;
 import alix.common.antibot.epoll.TelemetryProfiler;
+import alix.common.antibot.firewall.FireWallManager;
 import alix.common.connection.filters.GeoIPTracker;
 import alix.common.connection.profiler.LimboJoinProfiler;
 import alix.common.data.LoginType;
@@ -12,6 +13,8 @@ import alix.common.data.file.UserFileManager;
 import alix.common.data.premium.PremiumData;
 import alix.common.data.premium.PremiumDataCache;
 import alix.common.data.premium.PremiumStatus;
+import alix.common.data.security.email.EmailConfig;
+import alix.common.data.security.email.EmailHandler;
 import alix.common.database.DatabaseUpdater;
 import alix.common.login.premium.PremiumUtils;
 import alix.common.messages.AlixMessage;
@@ -30,6 +33,7 @@ import com.velocitypowered.api.command.CommandSource;
 import io.netty.channel.Channel;
 import net.kyori.adventure.text.Component;
 
+import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.List;
 
@@ -42,7 +46,6 @@ public final class AlixSystemCommand {
     private static final String passwordResetMessage = Messages.get("password-reset-forcefully");
     private static final AlixMessage playerDataNotFound = Messages.getAsObject("player-data-not-found");
 
-    // Suggestion provider for player names from UserFileManager
     private static final SuggestionProvider<CommandSource> USERNAME_SUGGESTIONS = (context, builder) -> {
         UserFileManager.getAllData().stream()
                 .map(PersistentUserData::getName)
@@ -50,22 +53,72 @@ public final class AlixSystemCommand {
         return builder.buildFuture();
     };
 
-    // Suggestion provider for login types
     private static final SuggestionProvider<CommandSource> LOGIN_TYPE_SUGGESTIONS = (context, builder) -> {
         Arrays.stream(LoginType.values()).map(LoginType::name).forEach(builder::suggest);
         return builder.buildFuture();
     };
 
     public static void register(CommandManager commandManager) {
-        // Root command literal (assumed command name: "as")
         LiteralArgumentBuilder<CommandSource> root = LiteralArgumentBuilder.literal("as");
         root.requires(source -> source.hasPermission("alixsystem.admin"));
 
-        root.then(BrigadierCommand.literalArgumentBuilder("save_all_to_db")
+        root.then(BrigadierCommand.literalArgumentBuilder("save_all_local_to_db")
                 .executes(context -> {
                     CommandSource sender = context.getSource();
                     sendMessage(sender, "All user data sync with the connected database has been initiated and should complete soon enough");
-                    UserFileManager.getAllData().forEach(PersistentUserData::saveToDatabase);
+                    UserFileManager.saveLocalToDb();
+                    return SINGLE_SUCCESS;
+                })
+        );
+
+        root.then(LiteralArgumentBuilder.<CommandSource>literal("ufw")
+                .then(RequiredArgumentBuilder.<CommandSource, String>argument("ip", StringArgumentType.word())
+                        .executes(context -> {
+                            CommandSource sender = context.getSource();
+                            String arg2 = StringArgumentType.getString(context, "ip");
+
+                            InetAddress ip;
+                            try {
+                                // assumes the user does not input a resolvable domain (cuz that would block, not great)
+                                ip = InetAddress.getByName(arg2);
+                            } catch (Exception e) {
+                                sendMessage(sender, "'" + arg2 + "' is not a valid IP address!");
+                                return 0; // Return 0 to indicate command failure
+                            }
+
+                            if (FireWallManager.removeDynamic(ip)) {
+                                sendMessage(sender, "Removed " + arg2 + " from the Firewall Database!");
+                            } else {
+                                if (PanicModeManager.isBlocked(ip)) {
+                                    sendMessage(sender, "Ip " + arg2 + " is not firewalled, but is unable to connect, because panic mode is active.");
+                                } else if (FireWallManager.isBlocked0(ip)) {
+                                    sendMessage(sender, "Ip " + arg2 + " is blocked statically, cannot remove from firewall. If this is an error, report this immediately!");
+                                } else {
+                                    sendMessage(sender, "Ip " + arg2 + " is not firewalled.");
+                                }
+                            }
+
+                            return SINGLE_SUCCESS;
+                        })
+                )
+        );
+
+        root.then(BrigadierCommand.literalArgumentBuilder("sendverifyemail")
+                .executes(context -> {
+                    /*if (Boolean.TRUE.equals(ServerSettingsManager.get(Setting.VERIFIED_EMAIL))) {
+                        return SINGLE_SUCCESS;
+                    }*/
+                    CommandSource sender = context.getSource();
+                    EmailHandler.sendVerifyMail(sender, EmailConfig.INSTANCE.email, true, AlixUtils::sendMessage);
+                    return SINGLE_SUCCESS;
+                })
+        );
+
+        addSubcommand(root, Arrays.asList("verifyemail"),
+                argument("code", StringArgumentType.greedyString()).executes(context -> {
+                    CommandSource sender = context.getSource();
+                    String code = StringArgumentType.getString(context, "code");
+                    EmailHandler.verifyMail(sender, null, code, true, AlixUtils::sendMessage);
                     return SINGLE_SUCCESS;
                 })
         );
@@ -85,7 +138,6 @@ public final class AlixSystemCommand {
 
 
         root.then(BrigadierCommand.literalArgumentBuilder("panicmode")
-                // Default execution when no arguments are provided (/as panicmode)
                 .executes(context -> {
                     CommandSource sender = context.getSource();
                     if (PanicModeManager.activate("Manual trigger.")) {
@@ -95,7 +147,6 @@ public final class AlixSystemCommand {
                     }
                     return SINGLE_SUCCESS;
                 })
-                // Subcommand for explicit "on" (/as panicmode on)
                 .then(BrigadierCommand.literalArgumentBuilder("on")
                         .executes(context -> {
                             CommandSource sender = context.getSource();
@@ -107,12 +158,9 @@ public final class AlixSystemCommand {
                             return SINGLE_SUCCESS;
                         })
                 )
-                // Subcommand for explicit "off" (/as panicmode off)
                 .then(BrigadierCommand.literalArgumentBuilder("off")
                         .executes(context -> {
                             CommandSource sender = context.getSource();
-                            // Assuming PanicModeManager has a deactivate() method returning a boolean
-                            // You may need to remove the string argument if your deactivate method doesn't take a reason.
                             if (PanicModeManager.deactivate("Manual trigger.")) {
                                 sendMessage(sender, "&aPanic mode has been manually disabled.");
                             } else {
@@ -134,7 +182,6 @@ public final class AlixSystemCommand {
             );
         }
 
-        // Subcommand: Add to allow list ("bl", "bypasslist", "bypasslimit")
         addSubcommand(root, Arrays.asList("bl", "bypasslist", "bypasslimit"),
                 argument("name", StringArgumentType.word())
                         .suggests(USERNAME_SUGGESTIONS)
@@ -151,7 +198,6 @@ public final class AlixSystemCommand {
                         })
         );
 
-        // Subcommand: Remove from allow list ("bl-r", "bypasslist-remove", "bypasslimit-remove")
         addSubcommand(root, Arrays.asList("bl-r", "bypasslist-remove", "bypasslimit-remove"),
                 argument("name", StringArgumentType.word())
                         .suggests(USERNAME_SUGGESTIONS)
@@ -167,7 +213,6 @@ public final class AlixSystemCommand {
                         })
         );
 
-        // Subcommand: Fully remove data ("frd", "fullyremovedata")
         addSubcommand(root, Arrays.asList("frd", "fullyremovedata"),
                 argument("name", StringArgumentType.word())
                         .suggests(USERNAME_SUGGESTIONS)
@@ -188,7 +233,6 @@ public final class AlixSystemCommand {
                         })
         );
 
-        // Subcommand: Reset premium status ("rs", "resetstatus")
         addSubcommand(root, Arrays.asList("rs", "resetstatus"),
                 argument("name", StringArgumentType.word())
                         .suggests(USERNAME_SUGGESTIONS)
@@ -206,7 +250,6 @@ public final class AlixSystemCommand {
                         })
         );
 
-        // Subcommand: Reset password ("rp", "resetpassword")
         addSubcommand(root, Arrays.asList("rp", "resetpassword"),
                 argument("name", StringArgumentType.word())
                         .suggests(USERNAME_SUGGESTIONS)
@@ -296,6 +339,10 @@ public final class AlixSystemCommand {
                                     var extraInfo = accounts.size() > 1 ? " &7(" + String.join(", ", accounts) + ")" : "";
                                     sendMessage(sender, "Accounts: &c" + accounts.size() + extraInfo);
                                 }
+
+                                var email = data.getEmail();
+                                if (email != null)
+                                    sendMessage(sender, "Email: &c" + email.email());
 
                                 var isEncrypted = AlixUtils.isOnlineEncryptionEnabled(channel);
                                 if (isEncrypted != null)
@@ -494,12 +541,12 @@ public final class AlixSystemCommand {
             sendMessage(sender, "");
             sendMessage(sender, "&c/as user <player> &7- Returns information about the given player.");
             sendMessage(sender, "&c/as panicmode [on/off] &7- Manually enables/disables Panic-Mode (only already-registered IPs can connect).");
-            sendMessage(sender, "&c/as save_all_to_db &7- Saves all locally-stored data into an externally-defined database (if any).");
+            sendMessage(sender, "&c/as save_all_local_to_db &7- Saves all locally-stored data into an externally-defined database (if any).");
             sendMessage(sender, "&c/as bl/bypasslimit <name> &7- Adds the specified name to the account limit bypass list. " +
                                 "Such accounts are not restricted by the account limiter, no matter the config 'max-total-accounts' parameter.");
             sendMessage(sender, "&c/as bl-r/bypasslimit-remove <name> &7- Removes the specified name from the account limit bypass list.");
             sendMessage(sender, "&c/as rp/resetpassword <player> &7- Resets the player's password.");
-            sendMessage(sender, "&c/as rp/resetpassword <player> <login type> &7- Resets the player's password and changes their login type. Available login types: COMMAND, PIN & ANVIL.");
+            sendMessage(sender, "&c/as rp/resetpassword <player> [login type] &7- Resets the player's password and changes their login type. Available login types: COMMAND, PIN & ANVIL.");
             sendMessage(sender, "&c/as cp/changepassword <player> <new password> [login type] &7- Sets the player's password to the new one specified, and optionally changes their login type.");
             sendMessage(sender, "&c/as frd/fullyremovedata <player> &7- Fully removes all account data of the specified player. The data cannot be restored after this operation.");
             sendMessage(sender, "&c/as rs/resetstatus <player> &7- Resets the player's premium status. Mainly aimed to forgive cracked players who used /premium");

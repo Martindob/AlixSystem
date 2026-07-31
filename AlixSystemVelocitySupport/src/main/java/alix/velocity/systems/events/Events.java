@@ -12,6 +12,7 @@ import alix.common.login.premium.*;
 import alix.common.reflection.CommonReflection;
 import alix.common.utils.AlixCache;
 import alix.common.utils.config.ConfigParams;
+import alix.common.utils.config.ConfigProvider;
 import alix.common.utils.floodgate.GeyserUtil;
 import alix.velocity.server.AlixVelocityLimbo;
 import alix.velocity.systems.events.premium.EncryptionInfo;
@@ -25,6 +26,7 @@ import com.velocitypowered.api.event.Continuation;
 import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PreLoginEvent;
+import com.velocitypowered.api.event.player.GameProfileRequestEvent;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
 import com.velocitypowered.api.event.proxy.ListenerBoundEvent;
 import com.velocitypowered.api.network.ListenerType;
@@ -46,15 +48,11 @@ import static alix.common.login.premium.PremiumVerifier.keyPair;
 
 public final class Events {
 
-    //private static final JavaNetInetAddressAccess access = SharedSecrets.getJavaNetInetAddressAccess();
     private final boolean authorizeLinked = true, authorizePremium = true;
     private final GeyserUtil util;
-    //private final VelocityConnectionFilter[] filters = AlixChannelInitInterceptor.getConnectionFilters();
-    //private final LimboRegisteredServer limboRegisteredServer;
 
     public Events(GeyserUtil util) {
         this.util = util;
-        //this.limboRegisteredServer = new LimboRegisteredServer(server);
     }
 
     @Subscribe(order = PostOrder.LAST)
@@ -65,10 +63,26 @@ public final class Events {
         AlixChannelInitInterceptor.initEndpoints();
     }
 
-    /*@Subscribe
-    public void onPing(ProxyPingEvent event) {
-        Main.logInfo("ProxyPingEvent=" + event);
-    }*/
+    private final boolean premiumUUID = ConfigProvider.config.getBoolean("premium-uuid");
+
+    @Subscribe(order = PostOrder.LAST)
+    public void onGameProfile(GameProfileRequestEvent event) {
+        if (!this.premiumUUID)
+            return;
+
+        var gameProfile = event.getGameProfile();
+        if (gameProfile.getId().version() != 3)
+            return;
+
+        var name = event.getUsername();
+        var data = UserFileManager.get(name);
+        if (data == null)
+            return;
+
+        var premiumData = data.getPremiumData();
+        if (premiumData.getStatus().isPremium())
+            event.setGameProfile(gameProfile.withId(premiumData.premiumUUID()));
+    }
 
     @Subscribe(order = PostOrder.FIRST)
     public void onInitialServer(PlayerChooseInitialServerEvent event, Continuation continuation) {
@@ -78,7 +92,6 @@ public final class Events {
         var channel = player.getConnection().getChannel();
 
         LimboJoinProfiler.update(channel, ConnectionStage.SERVER_CHOOSE_INITIAL_SERVER);
-        //Main.logInfo("onInitialServer");
 
         boolean bedrockPremium = this.authorizeLinked && this.util.isLinked(channel);
 

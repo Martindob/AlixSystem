@@ -7,11 +7,15 @@ import alix.common.utils.config.ConfigParams;
 import alix.common.utils.other.throwable.AlixException;
 import alix.velocity.Main;
 import alix.velocity.systems.packets.anvil.VerifiedAnvilBuilder;
+import alix.velocity.systems.packets.gui.VelocityAuthBuilder;
 import alix.velocity.systems.packets.gui.impl.IpAutoLoginGUI;
 import alix.velocity.utils.user.VerifiedUser;
 import com.github.retrooper.packetevents.event.simple.PacketPlayReceiveEvent;
 import com.github.retrooper.packetevents.event.simple.PacketPlaySendEvent;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientChatCommand;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientChatCommandUnsigned;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientNameItem;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWindowItems;
 import net.kyori.adventure.text.Component;
@@ -36,6 +40,7 @@ public final class VerifiedPacketProcessor {
     private VerifiedAnvilBuilder builder;
 
     //Auth proving
+    private VelocityAuthBuilder authBuilder;
 
 
     private static final AlixMessage
@@ -94,7 +99,7 @@ public final class VerifiedPacketProcessor {
         }
 
         AlixMessage msg = loginInfo.joinedRegistered() ? loginJoinMessage : registerJoinMessage;
-        Main.logInfo(msg.format(this.user.getName(), this.user.getAddress()));
+        Main.logInfo(msg.format(this.user.getName(), this.user.getAddress().getHostAddress()));
     }
 
     public void enablePasswordSetting(Consumer<String> onValidConfirmation, Runnable returnOriginalGui, Supplier<LoginType> loginType) {
@@ -157,6 +162,50 @@ public final class VerifiedPacketProcessor {
                 }
                 return;
             }
+            case VERIFYING_AUTH_ACCESS: {
+                //Main.logError("PACKET: " + event.getPacketType());
+                switch (event.getPacketType()) {
+                    case CLICK_WINDOW://the item spoofing happens here \/
+                        this.authBuilder.select(new WrapperPlayClientClickWindow(event).getSlot());
+                        event.setCancelled(true);
+                        break;
+                    case CLOSE_WINDOW:
+                        this.authBuilder.onCloseAttempt();
+                        return;
+                    case KEEP_ALIVE:
+                        return;
+                }
+            }
+            case VIEWING_QR: {
+                switch (event.getPacketType()) {
+                    case CHAT_COMMAND:
+                        this.processChat(new WrapperPlayClientChatCommand(event).getCommand());
+                        event.setCancelled(true);
+                        break;
+                    case CHAT_COMMAND_UNSIGNED:
+                        this.processChat(new WrapperPlayClientChatCommandUnsigned(event).getCommand());
+                        event.setCancelled(true);
+                        break;
+                }
+            }
+        }
+    }
+
+    private static final String
+            authCancelMessagePacket = Messages.getWithPrefix("google-auth-setting-cancel-chat");
+
+    private void processChat(String chat) {
+        switch (chat) {
+            case "confirm": {
+                //init the gui
+                if (!this.user.getData().getLoginParams().hasProvenAuthAccess()) this.verifyAuthAccess(null);
+                else this.endQRCodeShow();
+                return;
+            }
+            case "cancel": {
+                this.user.sendMessage(authCancelMessagePacket);
+                this.endQRCodeShow();
+            }
         }
     }
 
@@ -187,21 +236,36 @@ public final class VerifiedPacketProcessor {
     }
 
     public void verifyAuthAccess(Runnable actionOnCorrectInput) {
-        /*this.currentAction = CurrentAction.VERIFYING_AUTH_ACCESS;
-        this.authBuilder = new VerifiedVirtualAuthBuilder(this.user, correct -> {
+        this.currentAction = CurrentAction.VERIFYING_AUTH_ACCESS;
+        this.authBuilder = new VelocityAuthBuilder(this.user, correct -> {
             if (correct) {
-                VerifiedVirtualAuthBuilder.visualsOnProvenAccess(this.user);
+                VelocityAuthBuilder.visualsOnProvenAccess(this.authBuilder, this.user);
                 this.user.getData().getLoginParams().setHasProvenAuthAccess(true);
-                this.endQRCodeShowAndTeleportBack();
+                this.endQRCodeShow();
                 if (actionOnCorrectInput != null) actionOnCorrectInput.run();
+                this.user.closeInventory();
                 return;
             }
-            VerifiedVirtualAuthBuilder.visualsOnDeniedAccess(this.user);
-        });
-        this.authBuilder.openGUI();*/
+            VelocityAuthBuilder.visualsOnDeniedAccess(this.authBuilder, this.user);
+        }, false);
+        this.user.gui = null;
+        this.authBuilder.show();
+    }
+
+    private static final String showEndMessage = Messages.getWithPrefix("google-auth-show-end");
+
+    public void endQRCodeShow() {
+        switch (this.currentAction) {
+            case VIEWING_QR, VERIFYING_AUTH_ACCESS -> this.user.sendMessage(showEndMessage);
+        }
+        this.currentAction = CurrentAction.NONE;
+    }
+
+    public void startQrCodeShow() {
+        this.currentAction = CurrentAction.VIEWING_QR;
     }
 
     private enum CurrentAction {
-        NONE, SETTING_PASSWORD, VERIFYING_AUTH_ACCESS
+        NONE, SETTING_PASSWORD, VIEWING_QR, VERIFYING_AUTH_ACCESS
     }
 }

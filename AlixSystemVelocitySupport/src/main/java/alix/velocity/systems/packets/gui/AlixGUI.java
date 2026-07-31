@@ -16,6 +16,7 @@ import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientCl
 import net.kyori.adventure.text.Component;
 import ua.nanit.limbo.connection.login.gui.LimboAnvilBuilder;
 import ua.nanit.limbo.connection.login.gui.LimboAuthBuilder;
+import ua.nanit.limbo.connection.login.gui.bedrock.AbstractAuthBuilder;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -92,6 +93,6 @@ public abstract class AlixGUI implements AbstractAlixGUI {
     }
 
     protected static ItemStack create(ItemType type, String displayName, String... lore) {
-        return LimboAuthBuilder.of(type, displayName, lore);
+        return AbstractAuthBuilder.of(type, displayName, lore);
     }
 }

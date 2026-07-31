@@ -1,5 +1,6 @@
 package alix.velocity.utils.user;
 
+import alix.common.AlixCommonMain;
 import alix.common.reflection.CommonReflection;
 import alix.common.utils.AlixCommonUtils;
 import alix.velocity.Main;
@@ -9,6 +10,7 @@ import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
 import io.netty.channel.Channel;
 import lombok.SneakyThrows;
 
+import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,7 +23,14 @@ public final class UserManager {
     @SneakyThrows
     public static void init(ProxyServer server) {
         var config = server.getConfiguration();
-        var f = CommonReflection.getDeclaredFieldAccessible(config.getClass(), "onlineModeKickExistingPlayers");
+        Field f;
+        try {
+            f = CommonReflection.getDeclaredFieldAccessible(config.getClass(), "onlineModeKickExistingPlayers", "kickExistingPlayers");
+        } catch (Exception e) {
+            AlixCommonMain.logError("Could not find config field in " + config.getClass() + "! Debugging fields:");
+            AlixCommonUtils.debug(config.getClass().getDeclaredFields());
+            return;
+        }
         boolean kickExisting = (boolean) f.get(config);
         if (!kickExisting) {
             f.set(config, true);

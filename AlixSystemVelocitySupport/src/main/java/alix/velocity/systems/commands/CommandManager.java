@@ -3,13 +3,14 @@ package alix.velocity.systems.commands;
 import alix.common.commands.file.CommandsFileManager;
 import alix.common.data.LoginType;
 import alix.common.data.file.UserFileManager;
+import alix.common.data.security.email.EmailHandler;
 import alix.common.login.premium.PremiumUtils;
 import alix.common.messages.Messages;
 import alix.common.utils.AlixCommonUtils;
-import alix.common.utils.other.annotation.OptimizationCandidate;
 import alix.velocity.Main;
 import alix.velocity.server.impl.VelocityLimboIntegration;
 import alix.velocity.systems.packets.gui.impl.AccountGUI;
+import alix.velocity.utils.AlixUtils;
 import alix.velocity.utils.user.UserManager;
 import alix.velocity.utils.user.VerifiedUser;
 import com.github.retrooper.packetevents.protocol.sound.Sounds;
@@ -17,12 +18,14 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import ua.nanit.limbo.connection.login.packets.SoundPackets;
 
+import static alix.velocity.utils.AlixUtils.sendMessage;
 import static com.mojang.brigadier.Command.SINGLE_SUCCESS;
 import static com.mojang.brigadier.builder.LiteralArgumentBuilder.literal;
 
@@ -32,42 +35,101 @@ public final class CommandManager {
         register_Account(server);
         register_ChangePassword(server);
         AlixSystemCommand.register(server.getCommandManager());
+        //EmailCommand.register_VerifyEmail(server);
+        //EmailCommand.register_SendVerifyEmail(server);
         register_Premium(server.getCommandManager());
-        //register("alixsystem", new AlixSystemCommand());
+
+        registerPlaceholderCommand("confirm");
+        registerPlaceholderCommand("cancel");
     }
 
-    //private static final String
+    private static void registerPlaceholderCommand(String commandName) {
+        LiteralCommandNode<CommandSource> node = LiteralArgumentBuilder.<CommandSource>literal(commandName)
+                .requires(source -> {
+                    return source instanceof Player;//UserManager.getVerified(player.getUniqueId()).getDuplexProcessor().isSettingUp2FA();
+                }).executes(context -> Command.SINGLE_SUCCESS).build();
+
+        BrigadierCommand command = new BrigadierCommand(node);
+        Main.SERVER.getCommandManager().register(command);
+    }
 
     private static void register_Account(ProxyServer server) {
-        var cmd = command("account", ctx -> {
-            if (isConsole(ctx)) return SINGLE_SUCCESS;
-            Player player = (Player) ctx.getSource();
+        var accountCmd = LiteralArgumentBuilder.<CommandSource>literal("account")
+                .requires(source -> source instanceof Player)
+                .executes(ctx -> {
+                    if (isConsole(ctx)) return SINGLE_SUCCESS;
+                    Player player = (Player) ctx.getSource();
 
-            VerifiedUser user = UserManager.getVerified(player.getUniqueId());
+                    VerifiedUser user = UserManager.getVerified(player.getUniqueId());
 
-            /*if(user.isEncrypted()) {
+                    var data = user.getData();
+                    if (data == null) {
+                        player.sendRichMessage("<red>Error - Missing persistent data");
+                        return SINGLE_SUCCESS;
+                    }
+                    AccountGUI.add(user);
 
-                player.sendRichMessage("<red>Error - missing persistent data");
-                return SINGLE_SUCCESS;
-            }*/
+                    return SINGLE_SUCCESS;
+                });
 
-            var data = user.getData();
-            if (data == null) {
-                player.sendRichMessage("<red>Error - missing persistent data");
-                return SINGLE_SUCCESS;
-            }
-            AccountGUI.add(user);
+        var verifyEmailCmd = LiteralArgumentBuilder.<CommandSource>literal("verifyemail")
+                .executes(ctx -> {
+                    if (isConsole(ctx)) return SINGLE_SUCCESS;
+                    Player player = (Player) ctx.getSource();
+                    AlixUtils.sendMessage(player, "&eSpecify the verify code!");
+                    return SINGLE_SUCCESS;
+                })
+                .then(BrigadierCommand.requiredArgumentBuilder("verify-code", StringArgumentType.word())
+                        .executes(ctx -> {
+                            if (isConsole(ctx)) return SINGLE_SUCCESS;
+                            Player player = (Player) ctx.getSource();
+                            String code = StringArgumentType.getString(ctx, "verify-code");
 
-            return SINGLE_SUCCESS;
-        }).build();
+                            EmailHandler.verifyMail(player, UserFileManager.get(player.getUsername()), code, false, AlixUtils::sendMessage);
+                            return SINGLE_SUCCESS;
+                        })
+                );
+        var sendVerifyEmailCmd = LiteralArgumentBuilder.<CommandSource>literal("sendverifyemail")
+                .executes(ctx -> {
+                    if (isConsole(ctx)) return SINGLE_SUCCESS;
+                    Player player = (Player) ctx.getSource();
+                    AlixUtils.sendMessage(player, "&eUsage: /account sendverifyemail <email>");
+                    return SINGLE_SUCCESS;
+                })
+                .then(BrigadierCommand.requiredArgumentBuilder("email", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            if (isConsole(ctx)) return SINGLE_SUCCESS;
+                            Player player = (Player) ctx.getSource();
+                            String email = StringArgumentType.getString(ctx, "email");
 
+                            EmailHandler.sendVerifyMail(player, email, false, AlixUtils::sendMessage);
+                            return SINGLE_SUCCESS;
+                        })
+                );
+
+        // 4. Attach the subcommands to the base command
+        accountCmd.then(verifyEmailCmd);
+        accountCmd.then(sendVerifyEmailCmd);
+
+        // 5. Register the fully built command tree
         var manager = server.getCommandManager();
-
-        manager.register(manager.metaBuilder("account").aliases("settings").plugin(Main.PLUGIN).build(), new BrigadierCommand(cmd));
+        manager.register(
+                manager.metaBuilder("account")
+                        .aliases(CommandsFileManager.getAliases("account"))
+                        .plugin(Main.PLUGIN)
+                        .build(),
+                new BrigadierCommand(accountCmd.build())
+        );
     }
 
     private static void register_ChangePassword(ProxyServer server) {
-        var cmd = command("changepassword", ctx -> SINGLE_SUCCESS).then(BrigadierCommand.requiredArgumentBuilder("new password", StringArgumentType.word())
+        var cmd = command("changepassword", ctx -> {
+            if (isConsole(ctx)) return SINGLE_SUCCESS;
+
+            Player player = (Player) ctx.getSource();
+            sendMessage(player, "&eSpecify your new password!");
+            return SINGLE_SUCCESS;
+        }).then(BrigadierCommand.requiredArgumentBuilder("new password", StringArgumentType.word())
                 .executes(ctx -> {
                     if (isConsole(ctx)) return SINGLE_SUCCESS;
                     Player player = (Player) ctx.getSource();
@@ -80,13 +142,8 @@ public final class CommandManager {
                     }
                     String password = ctx.getInput();
 
-                    @OptimizationCandidate
                     String reason = AlixCommonUtils.getPasswordInvalidityReason(password, LoginType.ANVIL);
-
-                    //Channel channel = user.getChannel();
                     if (reason != null) {
-                        //Version version = user.getVersion();
-                        //PacketUtils.write(channel, version, SoundPackets.VILLAGER_NO);
                         user.writePacketSilently(SoundPackets.wrapperOf(Sounds.ENTITY_VILLAGER_NO));
                         player.sendRichMessage(reason);
                         return SINGLE_SUCCESS;
@@ -98,15 +155,10 @@ public final class CommandManager {
                     return SINGLE_SUCCESS;
                 })
         ).build();
-        /*.suggests((ctx, builder) -> {
-
-            builder.suggest("I like men", VelocityBrigadierMessage.tooltip(MiniMessage.miniMessage().deserialize("<rainbow>Men is watashi")));
-            return builder.buildFuture();
-        })*/
 
         var manager = server.getCommandManager();
 
-        manager.register(manager.metaBuilder("changepassword").aliases("changepass").plugin(Main.PLUGIN).build(), new BrigadierCommand(cmd));
+        manager.register(manager.metaBuilder("changepassword").aliases(CommandsFileManager.getAliases("changepassword")).plugin(Main.PLUGIN).build(), new BrigadierCommand(cmd));
     }
 
     private static void register(String cmd, com.velocitypowered.api.command.Command command) {
@@ -134,7 +186,7 @@ public final class CommandManager {
 
             if (!canBePremium) {
                 user.sendMessage(nonPremiumDataMessage);
-                return 0;
+                return SINGLE_SUCCESS;
             }
 
             String name = player.getUsername();
@@ -142,7 +194,7 @@ public final class CommandManager {
 
             if (data.getPremiumData().getStatus().isPremium()) {
                 user.sendMessage(alreadyPremiumMessage);
-                return 0;
+                return SINGLE_SUCCESS;
             }
 
             PremiumUtils.getOrRequestAndCacheData(channel, name, premiumData -> {
@@ -159,64 +211,13 @@ public final class CommandManager {
                         break;
                 }
             });
-            return 1;
+            return SINGLE_SUCCESS;
         });
 
         commandManager.register(new BrigadierCommand(premiumLiteral));
     }
-    /*private static void register_AS() {
-        register("alixsystem", new AlixSystemCommand());
-       *//* var cmd = command("as", ctx -> {
 
-            CommandSource sender = ctx.getSource();
-
-            return SINGLE_SUCCESS;
-        }).then(BrigadierCommand.requiredArgumentBuilder("testiiiinnngggggg", StringArgumentType.word())
-                        .suggests((ctx, builder) -> {
-                            suggestions.forEach(builder::suggest);
-                            return builder.buildFuture();
-                        })
-                .executes(ctx -> {
-                    if (isConsole(ctx)) return SINGLE_SUCCESS;
-                    Player player = (Player) ctx.getSource();
-                    VerifiedUser user = UserManager.get(player.getUniqueId());
-
-                    var data = user.getData();
-                    if (data == null) {
-                        player.sendRichMessage("<red>Error - missing persistent data");
-                        return SINGLE_SUCCESS;
-                    }
-                    String password = ctx.getInput();
-
-                    @OptimizationCandidate
-                    String reason = AlixCommonUtils.getPasswordInvalidityReason(password, LoginType.ANVIL);
-
-                    Channel channel = user.getChannel();
-                    if (reason != null) {
-                        Version version = user.getVersion();
-                        PacketUtils.write(channel, version, SoundPackets.VILLAGER_NO);
-                        player.sendRichMessage(reason);
-                        return SINGLE_SUCCESS;
-                    }
-
-                    data.setLoginType(LoginType.ANVIL);
-                    data.setPassword(password);
-
-                    return SINGLE_SUCCESS;
-                })
-        ).build();
-        *//**//*.suggests((ctx, builder) -> {
-
-            builder.suggest("I like men", VelocityBrigadierMessage.tooltip(MiniMessage.miniMessage().deserialize("<rainbow>Men is watashi")));
-            return builder.buildFuture();
-        })*//**//*
-
-        var manager = server.getCommandManager();
-
-        manager.register(manager.metaBuilder("changepassword").aliases("changepass").plugin(Main.PLUGIN).build(), new BrigadierCommand(cmd));*//*
-    }*/
-
-    private static boolean isConsole(CommandContext<CommandSource> ctx) {
+    static boolean isConsole(CommandContext<CommandSource> ctx) {
         if (!(ctx.getSource() instanceof Player)) {
             ctx.getSource().sendRichMessage("<red>Console cannot execute this command!</red>");
             return true;
@@ -224,7 +225,7 @@ public final class CommandManager {
         return false;
     }
 
-    private static LiteralArgumentBuilder<CommandSource> command(String cmd, Command<CommandSource> executor) {
+    static LiteralArgumentBuilder<CommandSource> command(String cmd, Command<CommandSource> executor) {
         LiteralArgumentBuilder<CommandSource> builder = literal(cmd);
         return builder.executes(executor);
     }
