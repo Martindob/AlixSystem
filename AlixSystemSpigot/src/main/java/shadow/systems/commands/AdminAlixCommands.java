@@ -1,5 +1,6 @@
 package shadow.systems.commands;
 
+import alix.common.antibot.algorithms.any.PanicModeManager;
 import alix.common.antibot.epoll.Telemetry;
 import alix.common.antibot.epoll.TelemetryProfiler;
 import alix.common.antibot.firewall.FireWallManager;
@@ -37,6 +38,7 @@ import shadow.utils.main.AlixUtils;
 import shadow.utils.users.UserManager;
 import shadow.utils.users.Verifications;
 
+import java.net.InetAddress;
 import java.util.Date;
 
 import static shadow.utils.main.AlixUtils.*;
@@ -54,6 +56,29 @@ public final class AdminAlixCommands implements CommandExecutor {
             if (l > 1) {
                 String arg2 = args[1];
                 switch (arg1) {
+                    case "ufw": {
+                        InetAddress ip;
+                        try {
+                            //assumes the user does not input a resolvable domain (cuz that would block, not great)
+                            ip = InetAddress.getByName(arg2);
+                        } catch (Exception e) {
+                            sendMessage(sender, "'" + arg2 + " is not a valid IP address!");
+                            return false;
+                        }
+
+                        if (FireWallManager.removeDynamic(ip))
+                            sendMessage(sender, "Removed " + arg2 + " from the Firewall Database!");
+                        else {
+                            if (PanicModeManager.isBlocked(ip))
+                                sendMessage(sender, "Ip " + arg2 + " is not firewalled, but is unable to connect, because panic mode is active.");
+                            else if (FireWallManager.isBlocked0(ip)) {
+                                sendMessage(sender, "Ip " + arg2 + " is blocked statically, cannot remove from firewall. If this is an error, report this immediately!");
+                            } else {
+                                sendMessage(sender, "Ip " + arg2 + " is not firewalled.");
+                            }
+                        }
+                        break;
+                    }
                     case "migrate": {
                         MigrateType type;
                         try {
@@ -476,7 +501,7 @@ public final class AdminAlixCommands implements CommandExecutor {
                 return true;
             }
             switch (arg1) {
-                case "helpmath":
+                case "helpmath"://ufw
                     sendMessage(sender, "");
                     sendMessage(sender, "&c/as calc/calculate <mathematical operation> &7- " +
                                         "Returns what the given mathematical operation is equal to. " +
@@ -535,9 +560,9 @@ public final class AdminAlixCommands implements CommandExecutor {
                         sendMessage(sender, "Disabled detailed join profiling");
                     return true;
                 }
-                case "save_all_to_db": {
+                case "save_all_local_to_db": {
                     sendMessage(sender, "All user data sync with the connected database has been initiated and should complete soon enough");
-                    UserFileManager.getAllData().forEach(PersistentUserData::saveToDatabase);
+                    UserFileManager.saveLocalToDb();
                     return true;
                 }
                 case "testdb": {

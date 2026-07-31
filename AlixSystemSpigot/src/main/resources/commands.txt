@@ -4,6 +4,7 @@ login: -
 account: settings
 changepassword: -
 premium: -
+recovery: -
 ##fly: flying
 ##sudo: -
 ##rename: itemrename

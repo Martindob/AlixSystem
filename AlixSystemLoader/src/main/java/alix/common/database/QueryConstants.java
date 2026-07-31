@@ -4,6 +4,16 @@ import alix.common.database.connect.DatabaseType;
 
 interface QueryConstants {
 
+    String LOAD_ALL_USERS = "SELECT " +
+                            "u.name, u.uuid, u.created_at, u.last_successful_login, u.ip, u.muted_until, " +
+                            "u.login_type, u.extra_login_type, u.ip_auto_login, u.auth_settings, " +
+                            "u.has_proven_auth_access, u.identity, u.email, u.homes, u.premium_status, u.premium_uuid, " +
+                            "p0.hashed_password, p0.hash_id, p0.salt, p0.matcher_id, " +
+                            "p1.hashed_password, p1.hash_id, p1.salt, p1.matcher_id " +
+                            "FROM alix_users2 u " +
+                            "LEFT JOIN alix_passwords2 p0 ON p0.owner_name = u.name AND p0.slot = 0 " +
+                            "LEFT JOIN alix_passwords2 p1 ON p1.owner_name = u.name AND p1.slot = 1";
+
     int MAIN_PASSWORD_SLOT = 0;
     int EXTRA_PASSWORD_SLOT = 1;
 
@@ -193,6 +203,8 @@ interface QueryConstants {
     String DELETE_PASSWORD_SQL =
             "DELETE FROM alix_passwords2 WHERE owner_name = ? AND slot = ?";
 
+    String CLEAR_PASSWORD_POINTERS = "DELETE FROM alix_passwords2 WHERE owner_name = ?";
+
     String UPDATE_USERS_PREMIUM_SQL =
             "UPDATE alix_users2 SET premium_status = ?, premium_uuid = ? WHERE name = ?";
 
@@ -274,4 +286,37 @@ interface QueryConstants {
             case POSTGRESQL, SQLITE -> INSERT_TOKEN_POSTGRES_AND_SQLITE;
         };
     }
+
+    String UPDATE_AUTH_SETTINGS_BY_NAME =
+            "UPDATE alix_users2 SET auth_settings = ? WHERE name = ?";
+
+    String UPDATE_HAS_PROVEN_AUTH_ACCESS_BY_NAME =
+            "UPDATE alix_users2 SET has_proven_auth_access = ? WHERE name = ?";
+
+    String UPDATE_IP_AUTO_LOGIN_BY_NAME =
+            "UPDATE alix_users2 SET ip_auto_login = ? WHERE name = ?";
+
+    String UPDATE_LOGIN_TYPE_BY_NAME =
+            "UPDATE alix_users2 SET login_type = ? WHERE name = ?";
+
+    String UPDATE_EXTRA_LOGIN_TYPE_BY_NAME =
+            "UPDATE alix_users2 SET extra_login_type = ? WHERE name = ?";
+
+    String UPDATE_EMAIL_BY_NAME =
+            "UPDATE alix_users2 SET email = ? WHERE name = ?";
+
+    String REMOVE_USER_BY_NAME =
+            "DELETE FROM alix_users2 WHERE name = ?";
+
+    String DELETE_PASSWORD_BY_SLOT =
+            "DELETE FROM alix_passwords2 WHERE owner_name = ? AND slot = ?";
+
+    String UPSERT_PASSWORD =
+            "INSERT INTO alix_passwords2 (owner_name, slot, hashed_password, hash_id, salt, matcher_id) " +
+            "VALUES (?, ?, ?, ?, ?, ?) " +
+            "ON DUPLICATE KEY UPDATE " +
+            "hashed_password = VALUES(hashed_password), " +
+            "hash_id = VALUES(hash_id), " +
+            "salt = VALUES(salt), " +
+            "matcher_id = VALUES(matcher_id)";
 }

@@ -34,6 +34,7 @@ public final class AlixSocketAccessBridge {
     private AlixSocketAccessBridge() {
     }
 
+    @RemotelyInvoked
     public static void initDelegate(MethodHandle target) {
         ACCEPT_CALL_SITE.setTarget(target);
         //I don't think this actually does anything, still seems to be annotated as 'NYI',

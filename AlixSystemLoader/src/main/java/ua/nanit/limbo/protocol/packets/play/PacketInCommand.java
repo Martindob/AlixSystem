@@ -22,6 +22,6 @@ public final class PacketInCommand extends InRetrooperPacket<WrapperPlayClientCh
     @Override
     public void handle(ClientConnection conn, LimboServer server) {
         String cmd = this.wrapper().getCommand();
-        ((LoginState) conn.getVerifyState()).handleCommand(getArgs(cmd));
+        ((LoginState) conn.getVerifyState()).handleCommand(cmd);
     }
 }

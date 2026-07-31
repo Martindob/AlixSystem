@@ -81,7 +81,7 @@ public abstract class AbstractPingCheck implements PingCheck {
 
         Object keepAlivePacket = this.createPacket(id);
 
-        this.channel.writeAndFlush(keepAlivePacket);
+        this.channel.write(keepAlivePacket);
 
         Main.logInfo("sent");
     }

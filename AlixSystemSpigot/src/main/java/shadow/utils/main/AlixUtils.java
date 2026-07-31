@@ -39,7 +39,6 @@ import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public final class AlixUtils {
@@ -65,7 +64,6 @@ public final class AlixUtils {
             requirePingCheckVerification, forcefullyDisableIpAutoLogin, //repeatedVerificationReminderMessages,
             anvilPasswordGui, hideFailedJoinAttempts, alixJoinLog, overrideExistingCommands, antibotService,
             requirePasswordRepeatInRegister, __noPremiumAuthButKeepIdentity, assignPremiumUUID;//renderFancyCaptchaDigits
-
 
 
     static {
@@ -862,6 +860,9 @@ public final class AlixUtils {
 
     @AlixIntrinsified(method = "String#split")
     public static String[] split(String text, String regex) {
+        if (text.isEmpty())
+            return new String[]{""};
+
         int regexLength = regex.length();
         switch (regexLength) {
             case 0:
@@ -899,6 +900,8 @@ public final class AlixUtils {
 
     @AlixIntrinsified(method = "String#split")
     public static String[] split(String a, char b, int limit) {
+        if (a.isEmpty())
+            return new String[]{""};
         if (limit == 1) return new String[]{a};
 
         char[] c = a.toCharArray();
@@ -930,6 +933,9 @@ public final class AlixUtils {
     //for non-complex Strings
     @AlixIntrinsified(method = "String#split")
     public static String[] split(String a, char b) {
+        if (a.isEmpty())
+            return new String[]{""};
+
         char[] c = a.toCharArray();
         int lM1 = c.length - 1;
         int regexes = getCharsCount(c, b);//it's usually faster to count the array's size rather than resize it
@@ -1276,19 +1282,8 @@ public final class AlixUtils {
         debug(message, ' ');
     }*/
 
-    public static <T> void debug(T[] message, Function<T, String> formatting, char separator) {
-        StringBuilder sb = new StringBuilder();
-        for (T o : message) sb.append(formatting.apply(o)).append(separator);
-        Main.logInfo(sb.substring(0, Math.max(0, sb.length() - 1)));
-        //sendToAllPlayers(sb.toString());
-    }
-
-    public static <T> void debug(T[] message, Function<T, String> formatting) {
-        debug(message, formatting, '\n');
-    }
-
     public static <T> void debug(T[] message) {
-        debug(message, T::toString);
+        AlixCommonUtils.debug(message);
     }
 
     public static void debugFields(Object obj) {

@@ -17,8 +17,10 @@ public final class PacketPlayInChat extends InRetrooperPacket<WrapperPlayClientC
 
     @Override
     public boolean isSkippable(ClientConnection conn) {
-        return conn.getClientVersion().moreOrEqual(Version.V1_19) || !(conn.getVerifyState().isLoginState())
-               || ((LoginState) conn.getVerifyState()).gui != null;
+        if (!conn.getVerifyState().isLoginState()) return true;
+        if (conn.getClientVersion().moreOrEqual(Version.V1_19)) return true;
+        // Pre-1.19 clients send commands as chat; handle() filters which commands to process.
+        return false;
     }
 
     @Override
@@ -26,7 +28,13 @@ public final class PacketPlayInChat extends InRetrooperPacket<WrapperPlayClientC
         String cmd = this.wrapper().getMessage();
         //Log.error("CMD: '" + cmd + "'");
         if (cmd.isEmpty() || cmd.charAt(0) != '/') return;
-        ((LoginState) conn.getVerifyState()).handleCommand(getArgs(cmd));
+        LoginState state = (LoginState) conn.getVerifyState();
+        // When a GUI is active for pre-1.19 clients, only allow /recovery
+        if (state.gui != null) {
+            String trimmed = cmd.length() > 1 ? cmd.substring(1).trim() : "";
+            if (!trimmed.toLowerCase().startsWith("recovery")) return;
+        }
+        state.handleCommand(cmd);
     }
 
     public static String[] getArgs(String cmd) {

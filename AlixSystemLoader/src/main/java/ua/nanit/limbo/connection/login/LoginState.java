@@ -6,11 +6,14 @@ import alix.common.data.LoginType;
 import alix.common.data.PersistentUserData;
 import alix.common.data.premium.PremiumDataCache;
 import alix.common.data.premium.VerifiedCache;
+import alix.common.data.security.email.EmailHandler;
+import alix.common.data.security.email.recovery.EmailRecovery;
 import alix.common.data.security.password.Password;
 import alix.common.environment.ServerEnvironment;
 import alix.common.login.LoginVerdict;
 import alix.common.login.LoginVerification;
 import alix.common.messages.Messages;
+import alix.common.packets.command.CustomCommand;
 import alix.common.scheduler.AlixScheduler;
 import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.config.ConfigParams;
@@ -40,6 +43,7 @@ import ua.nanit.limbo.protocol.registry.Version;
 import ua.nanit.limbo.protocol.snapshot.PacketSnapshot;
 import ua.nanit.limbo.protocol.snapshot.PacketSnapshots;
 
+import java.util.Arrays;
 import java.util.function.Consumer;
 
 import static alix.common.utils.config.ConfigProvider.config;
@@ -54,7 +58,14 @@ public final class LoginState implements VerifyState {
             REGISTER = requirePasswordRepeatInRegister
             ? createLimboCommand("register", Messages.get("commands-register-password-arg"), Messages.get("commands-register-password-second-arg"))
             : createLimboCommand("register", Messages.get("commands-register-password-arg")),
-            LOGIN = createLimboCommand("login", Messages.get("commands-login-password-arg"));
+            LOGIN = createLimboCommand("login", Messages.get("commands-login-password-arg")),
+            LOGIN_AND_RECOVERY = createMultiCommand(
+                    CustomCommand.of("recovery", Messages.get("commands-recovery-email-arg")),
+                    CustomCommand.of("login", Messages.get("commands-login-password-arg")));
+
+    private static PacketSnapshot createMultiCommand(CustomCommand... commands) {
+        return LimboCommand.constructMultiCommand(Arrays.asList(commands)).getPacketSnapshot();
+    }
 
     private static PacketSnapshot createLimboCommand(String command, String arg1Name, String arg2Name) {
         return LimboCommand.construct(CommandsFileManager.getCommand(command).getLabels(), arg1Name, arg2Name).getPacketSnapshot();
@@ -68,6 +79,7 @@ public final class LoginState implements VerifyState {
     private final PacketDuplexHandler duplexHandler;
     private LimboCountdown countdown;
     public LimboGUI gui;
+    public LimboGUI originalGui;
     private Consumer<ClientConnection> authAction;
     private LoginVerification loginVerification;
     public PersistentUserData data;
@@ -85,7 +97,7 @@ public final class LoginState implements VerifyState {
         String reason = AlixCommonUtils.getPasswordInvalidityReason(password, type);
         if (reason != null) {
             this.duplexHandler.write(SoundPackets.VILLAGER_NO);
-            this.duplexHandler.writeAndFlush(PacketPlayOutMessage.withMessage(reason));
+            this.sendMessage(reason);
             return null;
         }
 
@@ -139,6 +151,14 @@ public final class LoginState implements VerifyState {
         config.setAutoRead(true);
     }
 
+    public void writeMessage(String s) {
+        this.duplexHandler.write(PacketPlayOutMessage.withMessage(s));
+    }
+
+    void sendMessage(String s) {
+        this.duplexHandler.writeAndFlush(PacketPlayOutMessage.withMessage(s));
+    }
+
     public boolean isPasswordCorrect(String password) {
         return this.loginVerification.isPasswordCorrect(password);
     }
@@ -152,6 +172,10 @@ public final class LoginState implements VerifyState {
 
         this.write(SoundPackets.VILLAGER_NO);
         this.writeAndFlush(incorrectPasswordMessagePacket);
+
+        if (this.loginAttempts == 2 && this.data.canUseEmailRecovery())
+            this.sendMessage(EmailRecovery.recoveryReminder(this.data));
+
         return true;
     }
 
@@ -260,8 +284,14 @@ public final class LoginState implements VerifyState {
         /*if (PacketPlayOutShowDialog.write(this.connection))
             return;*/
 
-        if (this.version().moreOrEqual(Version.V1_13))
+        if (this.version().moreOrEqual(Version.V1_13)) {
+            if (this.data != null && this.data.canUseEmailRecovery()) {
+                this.write(LOGIN_AND_RECOVERY);
+                return;
+            }
+
             this.write(this.isRegistered ? LOGIN : REGISTER);
+        }
     }
 
     private boolean initDoubleVer() {
@@ -315,22 +345,82 @@ public final class LoginState implements VerifyState {
         //Log.error("LOGIN SENT: " + this.gui + " NAMES: " + this.connection.getChannel().pipeline().names());
     }
 
-    public void handleCommand(String[] args) {
+    public void handleCommand(String rawCmd) {
+        if (rawCmd == null || rawCmd.isEmpty()) return;
+        if (rawCmd.charAt(0) == '/') rawCmd = rawCmd.substring(1);
+        String[] split = rawCmd.split(" ");
+        String cmdName = split[0].toLowerCase();
+        String[] args = Arrays.copyOfRange(split, 1, split.length);
+
+        if (cmdName.equals("recovery")) {
+            this.handleRecoveryCommand(args);
+            return;
+        }
+
         if (this.isRegistered) this.handleLoginCommand(args);
         else this.handleRegisterCommand(args);
     }
 
-    private static final PacketSnapshot
-            incorrectPasswordMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("incorrect-password"));
+    private void handleRecoveryCommand(String[] args) {
+        if (args.length != 1) {
+            this.sendMessage(Messages.get("email-recovery-invalid-email"));
+            return;
+        }
 
-    private static final PacketSnapshot
-            incorrectPasswordKickPacket = PacketPlayOutDisconnect.snapshot(Messages.getWithPrefix("incorrect-password"));
+        String input = args[0].trim();
+        if (EmailHandler.verifyRecoveryCode(this.connection, input)) {
+            this.sendMessage(Messages.getWithPrefix("email-recovery-success"));
+            this.tryLogIn();
+            return;
+        }
+
+        if (this.data == null || this.data.getEmail() == null) {
+            this.sendMessage(Messages.getWithPrefix("email-recovery-no-email"));
+            return;
+        }
+
+        String registeredEmail = this.data.getEmail().email();
+        if (input.equalsIgnoreCase(registeredEmail)) {
+            EmailHandler.sendRecoveryMail(this.connection, input, (conn, msg) -> this.sendMessage(msg));
+            this.openRecoveryCodeGui();
+        } else {
+            this.sendMessage(Messages.getWithPrefix("email-recovery-invalid-email"));
+        }
+    }
+
+    public void openRecoveryEmailGui() {
+        if (this.gui != null && !(this.gui instanceof LimboRecoveryAnvilBuilder)) {
+            this.originalGui = this.gui;
+        }
+        this.gui = new LimboRecoveryAnvilBuilder(this.connection, this, false);
+        this.gui.show();
+    }
+
+    public void openRecoveryCodeGui() {
+        if (this.gui != null && !(this.gui instanceof LimboRecoveryAnvilBuilder)) {
+            this.originalGui = this.gui;
+        }
+        this.gui = new LimboRecoveryAnvilBuilder(this.connection, this, true);
+        this.gui.show();
+    }
+
+    public void reopenOriginalGui() {
+        if (this.originalGui != null) {
+            this.gui = this.originalGui;
+            this.gui.show();
+        } else if (this.data != null) {
+            var loginType = this.data.getLoginType();
+            this.gui = this.newBuilder(loginType);
+            this.gui.show();
+        }
+    }
 
     public static final PacketSnapshot
+            incorrectPasswordMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("incorrect-password")),
+            incorrectPasswordKickPacket = PacketPlayOutDisconnect.snapshot(Messages.getWithPrefix("incorrect-password")),
             formatRegisterMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("format-register")),
             formatLoginMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("format-login")),
             registerPasswordsDoNotMatchMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("commands-register-passwords-do-not-match"));
-
 
     private void handleRegisterCommand(String[] args) {
         switch (args.length) {
@@ -371,8 +461,10 @@ public final class LoginState implements VerifyState {
 
         String password = args[0]; //String.join("", args);
 
-        if (this.isPasswordCorrect(password)) this.tryLogIn();
-        else this.onIncorrectPassword();
+        if (this.isPasswordCorrect(password))
+            this.tryLogIn();
+        else
+            this.onIncorrectPassword();
     }
 
     @Override
@@ -389,7 +481,7 @@ public final class LoginState implements VerifyState {
     public void handle(PacketPlayInItemRename packet) {
         if (this.gui == null || !this.gui.isAnvil()) return;
 
-        ((LimboAnvilBuilder) this.gui).updateText(packet.wrapper().getItemName());
+        ((AbstractAnvilBuilder<?>) this.gui).updateText(packet.wrapper().getItemName());
     }
 
     @Override
@@ -403,7 +495,7 @@ public final class LoginState implements VerifyState {
     }
 
     //private long lastKeepAliveSentTime;
-    private float lastYaw = 0;
+    //private float lastYaw = 0;
 
     @Override
     public void handle(FlyingPacket packet) {
@@ -411,22 +503,22 @@ public final class LoginState implements VerifyState {
         long lastKeepAliveSent = now - lastKeepAliveSentTime;
 
         if (lastKeepAliveSent >= 10000) {
-            this.writeAndFlush(KeepAlives.KEEP_ALIVE_PREVENT_TIMEOUT);
+            this.write(KeepAlives.KEEP_ALIVE_PREVENT_TIMEOUT);
             this.lastKeepAliveSentTime = now;
         }*/
 
-        var wrapper = packet.wrapper();
+        /*var wrapper = packet.wrapper();
 
         if (wrapper.hasRotationChanged()) {
             var yaw = wrapper.getLocation().getYaw();
             float deltaYaw = Math.abs(yaw - this.lastYaw);
 
-            /*var msg = "Yaw: " + yaw + " deltaYaw: " + deltaYaw;
+            *//*var msg = "Yaw: " + yaw + " deltaYaw: " + deltaYaw;
             Log.error(msg);
-            this.writeAndFlush(PacketPlayOutMessage.withMessage("§c" + msg));*/
+            this.write(PacketPlayOutMessage.withMessage("§c" + msg));*//*
 
             this.lastYaw = yaw;
-        }
+        }*/
     }
 
     void disconnect(PacketOut disconnectPacket) {

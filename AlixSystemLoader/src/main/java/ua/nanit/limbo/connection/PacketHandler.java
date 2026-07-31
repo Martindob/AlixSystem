@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2020 Nan1t
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package ua.nanit.limbo.connection;
 
 import alix.common.antibot.algorithms.any.ConnectRequestAlgoImpl;
@@ -24,7 +7,9 @@ import alix.common.antibot.firewall.AlgorithmId;
 import alix.common.antibot.firewall.FireWallManager;
 import alix.common.connection.profiler.ConnectionStage;
 import alix.common.connection.profiler.LimboJoinProfiler;
+import alix.common.utils.AlixCommonUtils;
 import ua.nanit.limbo.NanoLimbo;
+import ua.nanit.limbo.connection.motd.MotdHandler;
 import ua.nanit.limbo.integration.PreLoginInfo;
 import ua.nanit.limbo.integration.PreLoginResult;
 import ua.nanit.limbo.protocol.packets.configuration.PacketInFinishConfiguration;
@@ -33,6 +18,7 @@ import ua.nanit.limbo.protocol.packets.login.PacketConfigDisconnect;
 import ua.nanit.limbo.protocol.packets.login.PacketLoginAcknowledged;
 import ua.nanit.limbo.protocol.packets.login.PacketLoginStart;
 import ua.nanit.limbo.protocol.packets.login.disconnect.PacketLoginDisconnect;
+import ua.nanit.limbo.protocol.packets.status.PacketInStatusPing;
 import ua.nanit.limbo.protocol.packets.status.PacketStatusRequest;
 import ua.nanit.limbo.protocol.snapshot.PacketSnapshot;
 import ua.nanit.limbo.server.LimboServer;
@@ -77,12 +63,27 @@ public final class PacketHandler {
         }*/
     }
 
+    public void handle(ClientConnection conn, PacketInStatusPing packetInStatusPing) {
+        if (!conn.replyingWithCachedMotd) {
+            //tf do I do???
+            var addr = AlixCommonUtils.getAddress(conn.getChannel());
+            FireWallManager.add(addr, AlgorithmId.J1, true);
+            conn.close();
+            return;
+        }
+
+        MotdHandler.sendPong(conn);
+    }
+
     public void handle(ClientConnection conn, PacketStatusRequest packet) {
         if (Telemetry.ENABLED)
             TelemetryProfiler.PROFILER.onStatusRequest(conn.getChannel());
 
         LimboJoinProfiler.update(conn.getChannel(), ConnectionStage.STATUS_REQUEST);
         ConnectRequestAlgoImpl.onLoginStartOrStatusRequest(conn.getChannel(), conn.getAddress());
+
+        if (MotdHandler.sendCachedResponse(conn))
+            return;
 
         conn.getFrameDecoder().stopResendCollection();
         conn.uninjectWithRecoded(packet);

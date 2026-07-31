@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2020 Nan1t
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package ua.nanit.limbo.protocol.registry;
 
 import alix.common.utils.netty.safety.NettySafety;
@@ -84,8 +67,9 @@ import ua.nanit.limbo.protocol.packets.play.transaction.PacketPlayOutTransaction
 import ua.nanit.limbo.protocol.packets.play.transfer.PacketPlayOutTransfer;
 import ua.nanit.limbo.protocol.packets.play.xp.PacketPlayOutExperience;
 import ua.nanit.limbo.protocol.packets.status.PacketInStatusPing;
-import ua.nanit.limbo.protocol.packets.status.PacketOutStatusPing;
+import ua.nanit.limbo.protocol.packets.status.PacketStatusPong;
 import ua.nanit.limbo.protocol.packets.status.PacketStatusRequest;
+import ua.nanit.limbo.protocol.packets.status.PacketStatusResponse;
 import ua.nanit.limbo.protocol.snapshot.PacketSnapshot;
 import ua.nanit.limbo.util.map.DefaultVersionMap;
 
@@ -106,7 +90,8 @@ public enum State {
         {
             serverBound.registerRetrooper(() -> PacketStatusRequest.INSTANCE, PacketType.Status.Client.REQUEST);
             serverBound.registerRetrooper(PacketInStatusPing::new, PacketType.Status.Client.PING);
-            clientBound.registerRetrooper(PacketOutStatusPing::new, PacketType.Status.Server.PONG);
+            clientBound.registerRetrooper(PacketStatusResponse::new, PacketType.Status.Server.RESPONSE);
+            clientBound.registerRetrooper(PacketStatusPong::new, PacketType.Status.Server.PONG);
         }
     },
     LOGIN {

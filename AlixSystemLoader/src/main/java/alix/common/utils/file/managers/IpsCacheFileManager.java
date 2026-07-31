@@ -1,5 +1,6 @@
 package alix.common.utils.file.managers;
 
+import alix.common.connection.vpn.IPInfo;
 import alix.common.utils.file.types.IPsCacheFile;
 
 import java.net.InetAddress;
@@ -8,25 +9,21 @@ public final class IpsCacheFileManager {
 
     private static final IPsCacheFile file = new IPsCacheFile();
 
-    public static void add(InetAddress ip, boolean isProxy) {
-        file.getMap().put(ip, isProxy);
+    public static void add(InetAddress ip, IPInfo ipInfo) {
+        file.getMap().put(ip, ipInfo);
         //add(ip.getHostAddress(), isProxy);
     }
 
-    public static Boolean isProxy(InetAddress ip) {
+    public static IPInfo getInfo(InetAddress ip) {
         return file.getMap().get(ip);
     }
-
-    /*public static void add(String ip, boolean isProxy) {
-        file.getMap().put(ip, isProxy);
-    }*/
 
     public static void save() {
         file.save();
     }
 
     static {
-        file.loadExceptionless();
+        file.load();
     }
 
     public static void init() {

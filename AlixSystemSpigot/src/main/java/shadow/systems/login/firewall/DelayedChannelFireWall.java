@@ -42,7 +42,7 @@ public final class DelayedChannelFireWall extends ChannelDuplexHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         //Main.logError("ACTIVE: " + ctx);
-        //ctx.writeAndFlush(ctx.alloc().buffer().writeBytes("'mimimimimxxxw'".getBytes()));
+        //ctx.write(ctx.alloc().buffer().writeBytes("'mimimimimxxxw'".getBytes()));
 
         //ctx.close();
         //Main.logError("ACTIVEEE ");
@@ -58,7 +58,7 @@ public final class DelayedChannelFireWall extends ChannelDuplexHandler {
         *//*
 */
 /*if (msg.getClass() == ReflectionUtils.loginInStartPacketClass)
-            ctx.channel().writeAndFlush(kickPacket).addListener(ChannelFutureListener.CLOSE);
+            ctx.channel().write(kickPacket).addListener(ChannelFutureListener.CLOSE);
         else *//*
 */
 /*
@@ -78,7 +78,7 @@ public final class DelayedChannelFireWall extends ChannelDuplexHandler {
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             //Main.logError("REAAADD: " + msg.getClass().getSimpleName());
             if (msg.getClass() == ReflectionUtils.loginInStartPacketClass)
-                ctx.channel().writeAndFlush(kickPacket).addListener(ChannelFutureListener.CLOSE);
+                ctx.channel().write(kickPacket).addListener(ChannelFutureListener.CLOSE);
             else super.channelRead(ctx, msg);
         }*//*
 

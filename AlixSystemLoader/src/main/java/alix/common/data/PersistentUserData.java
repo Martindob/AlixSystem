@@ -3,6 +3,7 @@ package alix.common.data;
 import alix.api.user.data.AlixUserData;
 import alix.api.user.data.PremiumStatus;
 import alix.common.AlixCommonMain;
+import alix.common.antibot.captcha.secrets.files.UserTokensFileManager;
 import alix.common.antibot.ip.IPUtils;
 import alix.common.connection.filters.GeoIPTracker;
 import alix.common.data.file.AllowListFileManager;
@@ -13,6 +14,8 @@ import alix.common.data.premium.PremiumData;
 import alix.common.data.premium.PremiumIdIndex;
 import alix.common.data.security.email.Email;
 import alix.common.data.security.password.Password;
+import alix.common.data.settings.ServerSettingsManager;
+import alix.common.data.settings.Setting;
 import alix.common.database.DatabaseUpdater;
 import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.file.SaveUtils;
@@ -46,6 +49,8 @@ public final class PersistentUserData implements AlixUserData {
     private final Identity identity;
     private volatile Email email;
 
+    //public volatile boolean isDirty;
+
     //name | password1 ; password2 | ip | homes | mutedUntil | login type1 ; login type2 | login settings | lastSuccessfulLogin | premium data
     //createdAt | email | identity
     private PersistentUserData(String[] splitData) {
@@ -53,7 +58,7 @@ public final class PersistentUserData implements AlixUserData {
         this.name = splitData[0];
         this.identity = Identity.fromSaved(this.name, splitData[12]);//very important to load it first
         this.uuid = this._uuid();
-        this.loginParams = new LoginParams(splitData[1]);
+        this.loginParams = new LoginParams(this, splitData[1]);
         this.ip = IPUtils.fromAddress(splitData[2]);
         this.homes = homesProvider.fromSavable(splitData[3]);
         this.mutedUntil = Long.parseLong(splitData[4]);
@@ -68,24 +73,24 @@ public final class PersistentUserData implements AlixUserData {
         this.createdAt = createdAtStr.equals(NO_VALUE) ? System.currentTimeMillis() : Long.parseLong(createdAtStr);
         this.readEmail(splitData[11]);
 
-        UserFileManager.putData(this);
         GeoIPTracker.addExisting(this.ip);//Add it here, as it was loaded
+        UserFileManager.putData(this);
     }
 
     private PersistentUserData(String name, InetAddress ip, Password password) {
         this.name = name;
         this.uuid = this._uuid();
         this.ip = ip;
-        this.loginParams = new LoginParams(password);
+        this.loginParams = new LoginParams(this, password);
         this.homes = homesProvider.newList();
         this.premiumData = PremiumData.UNKNOWN;
         this.createdAt = System.currentTimeMillis();
         this.identity = Identity.newIdentity(name);
-        UserFileManager.putData(this);
 
         GeoIPTracker.addExisting(ip);
         GeoIPTracker.removeTemporary(ip);
 
+        UserFileManager.putData(this);
         this.saveToDatabase();
     }
 
@@ -119,6 +124,10 @@ public final class PersistentUserData implements AlixUserData {
         this.mutedUntil = mutedUntil;
     }
 
+    public boolean canUseEmailRecovery() {
+        return this.getEmail() != null && ServerSettingsManager.is(Setting.VERIFIED_EMAIL, true);
+    }
+
     void readEmail(String data) {
         try {
             this.email = Email.readFromSaved(data, this.tokenKey());
@@ -130,6 +139,7 @@ public final class PersistentUserData implements AlixUserData {
     public boolean setEmail(String email) {
         try {
             this.email = Email.fromEmail(email, this.tokenKey());
+            database.updateEmailByName(this.name, this.emailSavable());
             return true;
         } catch (Exception e) {
             AlixCommonUtils.logException(e);
@@ -156,12 +166,23 @@ public final class PersistentUserData implements AlixUserData {
         );
     }
 
+    /*public void markDirty() {
+        this.isDirty = true;
+    }*/
+
     public MapSecretKey<UUID> tokenKey() {
         return MapSecretKey.fromName(this.identity.identity());
     }
 
+    public String getToken() {
+        return UserTokensFileManager.getTokenOrSupply(this.tokenKey());
+    }
+
     public void saveToDatabase() {
         database.saveData(this);
+        database.saveUserToken(this.identity, this.getToken());
+
+        AlixCommonMain.logInfo("Saving user " + this.name + " into the database");
         /*database.insertUser(this.name, this.uuid, this.createdAt, this.getPassword());
 
         database.setPremiumData(this.name, this.premiumData);*/
@@ -198,7 +219,7 @@ public final class PersistentUserData implements AlixUserData {
         this.mutedUntil = mutedUntil;
         this.identity = identity == null ? Identity.newIdentity(name) : identity;
 
-        this.loginParams = new LoginParams(password == null ? Password.empty() : password);
+        this.loginParams = new LoginParams(this, password == null ? Password.empty() : password);
         this.loginParams.setLoginType(loginType);
         this.loginParams.setExtraLoginType(extraLoginType);
         this.loginParams.initSettings(String.valueOf(ipAutoLogin));
@@ -396,13 +417,7 @@ public final class PersistentUserData implements AlixUserData {
     }
 
     public void setPassword(Password password) {
-        this.setPasswordDatabase(password, this.getPassword());
-
         this.loginParams.setPassword(password);
-    }
-
-    private void setPasswordDatabase(Password newPass, Password oldPass) {
-        database.setPassword(this.name, newPass, oldPass);
     }
 
     public void setPremiumData(@NotNull PremiumData premiumData) {
@@ -425,7 +440,7 @@ public final class PersistentUserData implements AlixUserData {
         this.loginParams.setAuthSettings(AuthSetting.PASSWORD);
         this.loginParams.setHasProvenAuthAccess(false);
 
-        database.clearPasswordPointer(this.name);
+        database.clearPasswordPointers(this.name);
     }
 
     public PersistentUserData setIP(InetAddress ip) {
@@ -483,5 +498,15 @@ public final class PersistentUserData implements AlixUserData {
 
     public Email getEmail() {
         return this.email;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof PersistentUserData data && data.identity.equals(this.identity);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.identity.hashCode();
     }
 }

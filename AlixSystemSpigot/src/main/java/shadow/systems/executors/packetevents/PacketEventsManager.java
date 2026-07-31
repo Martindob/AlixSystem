@@ -301,7 +301,7 @@ public final class PacketEventsManager {
             }*/
             /*if (event.getPacketType() == JOIN_GAME) {
                 WrapperPlayServerJoinGame c = new WrapperPlayServerJoinGame(event);
-                NettyUtils.getSilentContext((Channel) event.getUser().getChannel()).writeAndFlush(NettyUtils.createBuffer(c));
+                NettyUtils.getSilentContext((Channel) event.getUser().getChannel()).write(NettyUtils.createBuffer(c));
                 event.setCancelled(true);
                 *//*Main.logInfo("OUT JOIN GAME: " + AlixUtils.getFields(c));
                 Main.logInfo("OUT JOIN GAME TAGS: " + c.getDimensionCodec().getTags());
@@ -444,7 +444,7 @@ public final class PacketEventsManager {
         @Override
         public final void onPacketReceive(PacketReceiveEvent event) {
             if (event.getPacketType() == PacketType.Login.Client.LOGIN_START && FireWallManager.isBlocked(event.getUser().getAddress()))
-                ((Channel) event.getChannel()).writeAndFlush(kickPacket).addListener(ChannelFutureListener.CLOSE);
+                ((Channel) event.getChannel()).write(kickPacket).addListener(ChannelFutureListener.CLOSE);
         }
     }*/
 
@@ -483,9 +483,9 @@ public final class PacketEventsManager {
                 }
             });*//*
 
-            //AlixScheduler.runLaterAsync(() -> channel.writeAndFlush(kickPacket).addListener(ChannelFutureListener.CLOSE), 10, TimeUnit.MILLISECONDS);
+            //AlixScheduler.runLaterAsync(() -> channel.write(kickPacket).addListener(ChannelFutureListener.CLOSE), 10, TimeUnit.MILLISECONDS);
 
-            channel.writeAndFlush(kickPacket).addListener(ChannelFutureListener.CLOSE);
+            channel.write(kickPacket).addListener(ChannelFutureListener.CLOSE);
             Main.logInfo("SENT");
             //((Channel) event.getChannel()).
             //WrapperHandshakingClientHandshake packet = new WrapperHandshakingClientHandshake(event);

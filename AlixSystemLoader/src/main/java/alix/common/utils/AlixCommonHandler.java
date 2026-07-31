@@ -28,6 +28,7 @@ import alix.common.utils.multiengine.ban.AbstractBanList;
 import alix.common.utils.multiengine.ban.BukkitBanList;
 import alix.common.utils.multiengine.server.AbstractServer;
 import alix.common.utils.multiengine.server.BukkitServer;
+import alix.common.utils.multiengine.server.VelocityServer;
 import alix.loaders.bukkit.BukkitAlixMain;
 import alix.loaders.velocity.VelocityAlixMain;
 import io.netty.channel.Channel;
@@ -151,15 +152,15 @@ public final class AlixCommonHandler {
         }
     }
 
-    @SuppressWarnings("JavaReflectionMemberAccess")
     public static ExecutorService createExecutorForBlockingTasks() {
         try {
             ExecutorService executor = invoke(Executors.class.getMethod("newVirtualThreadPerTaskExecutor"), null);
             AlixCommonMain.logInfo("Using VirtualThreads for blocking tasks execution.");
             return executor;
         } catch (NoSuchMethodException e) {
-            AlixCommonMain.logInfo("Using a fixed pool for blocking tasks execution.");
-            return Executors.newFixedThreadPool(4);
+            int t = Math.max(4, Runtime.getRuntime().availableProcessors() * 2);
+            AlixCommonMain.logInfo("Using a fixed pool of " + t + " threads for blocking tasks execution.");
+            return Executors.newFixedThreadPool(t);
         }
     }
 
@@ -169,7 +170,7 @@ public final class AlixCommonHandler {
             case PAPER:
                 return BukkitBanList.get(ip);
             default:
-                throw new AssertionError();
+                return null;
         }
     }
 
@@ -190,8 +191,8 @@ public final class AlixCommonHandler {
             case SPIGOT:
             case PAPER:
                 return new BukkitServer();
-            /*case VELOCITY:
-                return VelocityAlixMain.instance;*/
+            case VELOCITY:
+                return new VelocityServer();
             default:
                 throw new AssertionError();
         }

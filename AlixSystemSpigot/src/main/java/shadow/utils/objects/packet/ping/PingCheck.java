@@ -95,7 +95,7 @@ public class PingCheck implements Runnable {
             throw new RuntimeException(e);
         }
         set.add(time);
-        channel.writeAndFlush(keepAlivePacket);
+        channel.write(keepAlivePacket);
         //Bukkit.broadcastMessage("Spoofed");
     }
 }*/

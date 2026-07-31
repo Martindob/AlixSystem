@@ -47,7 +47,7 @@
 //    //Inspired by: https://github.com/retrooper/packetevents/blob/2.0/api/src/main/java/com/github/retrooper/packetevents/protocol/player/User.java#L143
 //
 //    public final void writeAndFlushSilently(Object msg) {
-//        this.afterAlixHandlerContext.writeAndFlush(msg);
+//        this.afterAlixHandlerContext.write(msg);
 //    }
 //
 //    public final void writeSilently(Object msg) {

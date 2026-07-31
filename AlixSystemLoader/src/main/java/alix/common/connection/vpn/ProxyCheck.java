@@ -5,7 +5,7 @@ import com.google.gson.JsonElement;
 
 public interface ProxyCheck {
 
-    CheckResult isProxy(String address);
+    CheckResultHolder isProxy(String address);
 
     static JsonElement getResponse(String urlLink) {
         return HttpsHandler.getResponse(urlLink);

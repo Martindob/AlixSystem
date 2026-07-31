@@ -7,6 +7,7 @@ import alix.common.utils.other.throwable.AlixError;
 import com.github.retrooper.packetevents.protocol.player.User;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelPromise;
 import lombok.SneakyThrows;
 import net.kyori.adventure.text.Component;
 import ua.nanit.limbo.NanoLimbo;
@@ -21,7 +22,6 @@ import ua.nanit.limbo.protocol.PacketOut;
 import ua.nanit.limbo.protocol.packets.login.disconnect.PacketLoginDisconnect;
 import ua.nanit.limbo.protocol.registry.State;
 import ua.nanit.limbo.protocol.registry.Version;
-import ua.nanit.limbo.protocol.snapshot.PacketSnapshot;
 import ua.nanit.limbo.server.Log;
 
 public final class PacketUtils {
@@ -81,22 +81,32 @@ public final class PacketUtils {
         decompressed.release();
     }
 
-    public static void write(Channel channel, Version version, PacketSnapshot packet, CipherHandler cipher) {
+    public static void write(Channel channel, Version version, PacketOut packet, CipherHandler cipher) {
         PacketDuplexHandler.write0(channel, packet, cipher, version, channel.voidPromise());
     }
 
-    public static void writeAndFlush(Channel channel, Version version, PacketSnapshot packet, CipherHandler cipher) {
+    public static void writeAndFlush(Channel channel, Version version, PacketOut packet, CipherHandler cipher) {
         write(channel, version, packet, cipher);
         channel.flush();
     }
 
-    public static void closeWith(User user, PacketSnapshot packet, CipherHandler cipher) {
+    public static void closeWith(User user, PacketOut packet, CipherHandler cipher) {
         closeWith((Channel) user.getChannel(), Version.of(user.getClientVersion().getProtocolVersion()), packet, cipher);
     }
 
-    public static void closeWith(Channel channel, Version version, PacketSnapshot packet, CipherHandler cipher) {
+    public static void closeWith(Channel channel, Version version, PacketOut packet, CipherHandler cipher) {
         PacketDuplexHandler.write0(channel, packet, cipher, version, channel.newPromise()).addListener(UnsafeCloseFuture.INSTANCE);
         channel.unsafe().flush();//not gonna worry about FCH
+    }
+
+    public static void unsafeWrite(Channel channel, ByteBuf buf) {
+        unsafeWrite(channel, buf, channel.voidPromise());
+    }
+
+    public static void unsafeWrite(Channel channel, ByteBuf buf, ChannelPromise promise) {
+        //duplicate const buffers to avoid issues during partial reads
+        var toSend = buf.isReadOnly() ? buf.duplicate() : buf;
+        channel.unsafe().write(toSend, promise);
     }
 
     public static ByteBuf constLoginDisconnect(Component reason) {

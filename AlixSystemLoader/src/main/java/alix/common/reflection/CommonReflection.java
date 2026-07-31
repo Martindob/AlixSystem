@@ -71,6 +71,18 @@ public final class CommonReflection {
         }
     }
 
+    public static Field getDeclaredFieldAccessible(Class<?> clazz, String... names) {
+        for (String name : names) {
+            try {
+                Field field = clazz.getDeclaredField(name);
+                field.setAccessible(true);
+                return field;
+            } catch (NoSuchFieldException ignored) {
+            }
+        }
+        throw new AlixException("No field" + Arrays.toString(names));
+    }
+
     public static Field getDeclaredFieldAccessible(Class<?> clazz, String name) {
         try {
             var field = clazz.getDeclaredField(name);

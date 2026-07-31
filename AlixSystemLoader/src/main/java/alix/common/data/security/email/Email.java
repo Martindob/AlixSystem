@@ -1,32 +1,35 @@
 package alix.common.data.security.email;
 
-import alix.common.antibot.captcha.secrets.files.UserTokensFileManager;
-import alix.common.data.crypto.EncryptedSequence;
+import alix.common.data.PersistentUserData;
+import alix.common.utils.config.ConfigProvider;
 import alix.common.utils.other.keys.secret.MapSecretKey;
 
 import java.util.UUID;
 
-public final class Email {
+public interface Email {
 
-    private final EncryptedSequence email;
+    static Email readFromSaved(String line, MapSecretKey<UUID> key) throws Exception {
+        if (line.equals(PersistentUserData.NO_VALUE))
+            return null;
 
-    Email(EncryptedSequence email) {
-        this.email = email;
+        //it's in bare text
+        if (line.contains("@"))
+            return fromEmail(line, key);
+
+        var encrypted = EncryptedEmailImpl.readFromEncrypted0(line, key);
+        return isConfigEncrypt ? encrypted : new RawTextEmailImpl(encrypted.email());
     }
 
-    public static Email readFromSaved(String line, MapSecretKey<UUID> key) throws Exception {
-        return line.equals("0") ? null : new Email(EncryptedSequence.fromEncrypted(line, UserTokensFileManager.getTokenOrSupply(key)));
+    static Email fromEmail(String email, MapSecretKey<UUID> key) throws Exception {
+        if (isConfigEncrypt)
+            return EncryptedEmailImpl.fromUnencrypted0(email, key);
+
+        return new RawTextEmailImpl(email);
     }
 
-    public static Email fromEmail(String email, MapSecretKey<UUID> key) throws Exception {
-        return new Email(EncryptedSequence.fromUnencrypted(email, UserTokensFileManager.getTokenOrSupply(key)));
-    }
+    boolean isConfigEncrypt = ConfigProvider.config.getBoolean("encrypt-emails");
 
-    public String email() {
-        return this.email.decrypted();
-    }
+    String email();
 
-    public String toSavable() {
-        return this.email.encrypted();
-    }
+    String toSavable();
 }

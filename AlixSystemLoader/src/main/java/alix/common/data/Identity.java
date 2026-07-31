@@ -22,4 +22,14 @@ public final class Identity {
     public static Identity fromSaved(String name, String saved) {
         return new Identity(saved.equals("0") ? name : saved);
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Identity id && id.identity.equals(this.identity);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.identity.hashCode();
+    }
 }

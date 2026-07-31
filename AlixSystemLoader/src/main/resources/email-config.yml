@@ -1,10 +1,17 @@
+#-------------------------------------------------------------------------------------------------#
+#                        This config is used to set up the connection                             #
+#                   to an SMTP server. This is useful if you want to give                         #
+#                       your players the ability to add their own emails,                         #
+#                    which can be used for account recovery or if you want                        #
+#                             to connect them to your own website                                 #
+#                                   For more info check out                                       #
+#     https://github.com/ShadowOfHeaven-Me/AlixSystem/wiki/Account-Recovery-Email-Set%E2%80%90Up  #
+#-------------------------------------------------------------------------------------------------#
+
 #------------------------------------------------#
 #                 SERVER SET-UP                  #
 #------------------------------------------------#
 
-#This config is used to set up the connection to an SMTP server
-# This is useful if you want to give the players the ability to add their own emails,
-# which can be used for account recovery or if you want to connect them to your own website
 
 username: account@gmail.com
 sender: Alix

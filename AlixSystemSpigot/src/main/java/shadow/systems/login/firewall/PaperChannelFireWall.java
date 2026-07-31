@@ -38,7 +38,7 @@ public final class PaperChannelFireWall implements ChannelInitializeListener {
         @Override
         public final void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             if (msg.getClass() == ReflectionUtils.loginInStartPacketClass)
-                ctx.channel().writeAndFlush(kickPacket).addListener(ChannelFutureListener.CLOSE);
+                ctx.channel().write(kickPacket).addListener(ChannelFutureListener.CLOSE);
             else super.channelRead(ctx, msg);
         }
 

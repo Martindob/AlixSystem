@@ -17,8 +17,14 @@ public final class FileUpdater {
     public static void updateFiles() {
         updateFile("database.yml", DEFAULT_SPLITERATOR);
 
+        //email-config.yml
+        updateFile("email-config.yml", DEFAULT_SPLITERATOR);
+
         //config.yml
         updateFile("config.yml", DEFAULT_SPLITERATOR, Validation.VALIDATE_TRIMMED_DASH_START);
+
+        //commands.txt
+        updateFile("commands.txt", DEFAULT_SPLITERATOR, Validation.VALIDATE_HASHTAG_START);
 
         switch (ServerEnvironment.getEnvironment()) {
             case SPIGOT:
@@ -26,9 +32,6 @@ public final class FileUpdater {
                 //messages.txt
                 File messagesFile = updateFile("messages.txt", DEFAULT_SPLITERATOR);
                 MessagesFileUpdater.updateFormatting(messagesFile);
-
-                //commands.txt
-                updateFile("commands.txt", DEFAULT_SPLITERATOR, Validation.VALIDATE_HASHTAG_START);
 
                 //updateFile("secrets/secrets", Validation.VALIDATE_TRIMMED_DASH_START);
                 break;

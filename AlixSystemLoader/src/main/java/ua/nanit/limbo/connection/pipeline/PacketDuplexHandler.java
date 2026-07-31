@@ -162,7 +162,12 @@ public final class PacketDuplexHandler extends ChannelDuplexHandler {
             if (cause instanceof IOException) return;
 
             if (cause instanceof NettySafetyException || cause instanceof IndexOutOfBoundsException) {
+                this.connection.closeInvalidPacket();
+                if (NanoLimbo.broadcastInvalidPacketFireWalls) {
+                    cause.printStackTrace();
+                }
                 var addr = AlixCommonUtils.getAddress(ctx.channel());
+                //if (!GeoIPTracker.isMapped(addr))
                 FireWallManager.addCauseException(addr, cause, FireWallManager.NO_TIMEOUT);
                 return;
             }
@@ -178,6 +183,7 @@ public final class PacketDuplexHandler extends ChannelDuplexHandler {
             UnsafeCloseFuture.unsafeClose(ctx.channel());
         } catch (Exception e) {
             AlixCommonUtils.logException(e);
+            this.channel.close();
         }
         //this.connection.sendPacketAndClose(new PacketConfigDisconnect("§cInternal limbo error"));
     }
@@ -362,13 +368,14 @@ public final class PacketDuplexHandler extends ChannelDuplexHandler {
         if (NanoLimbo.validateWrites && out.refCnt() == 0)
             Log.warning("cnt=" + out.refCnt());
 
-        this.channel.unsafe().write(out, promise);
+        PacketUtils.unsafeWrite(this.channel, out, promise);
+        //this.channel.unsafe().write(out, promise);
         /*if (outboundBuffer != null) outboundBuffer.addMessage(out, out.readableBytes(), promise);
         else out.release();*/
     }
 
     @SneakyThrows
-    public static ChannelPromise write0(Channel channel, PacketSnapshot packet, CipherHandler cipher, Version version, ChannelPromise promise) {
+    public static ChannelPromise write0(Channel channel, PacketOut packet, CipherHandler cipher, Version version, ChannelPromise promise) {
         if (!channel.eventLoop().inEventLoop()) {
             channel.close();
             throw new AlixError("write0 not in EventLoop");
@@ -379,20 +386,42 @@ public final class PacketDuplexHandler extends ChannelDuplexHandler {
         }
 
         boolean noCompression = floodgateNoCompression && NanoLimbo.INTEGRATION.geyserUtil().isBedrock(channel);
-        ByteBuf buf = noCompression ? packet.getEncodedNoCompression(version, channel) : packet.getEncoded(version, channel);
+        Packet unwrapped;
+        State state;
+        ByteBuf buf;
+
+        if (packet instanceof PacketSnapshot snapshot) {
+            unwrapped = snapshot.packet;
+            state = snapshot.state;
+            //noCompression |= CompressionSupplier.compressDisabled(unwrapped, version, state);
+            buf = noCompression ? snapshot.getEncodedNoCompression(version, channel) : snapshot.getEncoded(version, channel);
+        } else {
+            unwrapped = packet;
+            state = State.getState(packet);//unwrapped = packet
+            //noCompression |= CompressionSupplier.compressDisabled(unwrapped, version, state);
+            var compression = noCompression ? null : PacketSnapshot.compress(channel).getHandlerFor(packet, version, state);
+
+            var encoderMappings = state.clientBound.getRegistry(version);
+
+            buf = encodeToRaw0(packet, encoderMappings, version, compression, true);
+            if (NanoLimbo.debugRawEncodes)
+                new Exception("encodeToRaw0").printStackTrace();
+        }
 
         if (NanoLimbo.debugPackets) {
-            Log.error("write0 - " + packet.getPacket() + " COMPRESS=" + (!noCompression) + " CIPHER=" + (cipher != null));
+            Log.error("write0 - " + unwrapped + " COMPRESS=" + (!noCompression) + " CIPHER=" + (cipher != null));
         }
 
         if (NanoLimbo.validateWrites)
-            PacketUtils.validateOut(buf, null, noCompression ? null : GlobalCompressionHandler.INSTANCE, packet.state.clientBound.getRegistry(version), version);
+            PacketUtils.validateOut(buf, null, noCompression ? null : GlobalCompressionHandler.INSTANCE, state.clientBound.getRegistry(version), version);
 
         //ChannelOutboundBuffer outboundBuffer = channel.unsafe().outboundBuffer();
 
         ByteBuf out = CipherHandler.encrypt(buf, cipher);
 
-        channel.unsafe().write(out, promise);
+        PacketUtils.unsafeWrite(channel, out, promise);
+        //channel.unsafe().write(out, promise);
+
         /*if (outboundBuffer != null) outboundBuffer.addMessage(out, out.readableBytes(), promise);
         else out.release();*/
 

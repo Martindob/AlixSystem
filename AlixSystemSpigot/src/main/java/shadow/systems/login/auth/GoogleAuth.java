@@ -10,7 +10,7 @@ import io.netty.channel.Channel;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import shadow.systems.login.reminder.AuthReminder;
+import alix.common.login.auth.GoogleAuthExplanation;
 import shadow.systems.netty.AlixChannelHandler;
 import shadow.utils.main.file.managers.OriginalLocationsManager;
 import shadow.utils.misc.captcha.ImageRenderer;
@@ -59,6 +59,8 @@ public final class GoogleAuth {
 
     private static final ByteBuf PLAYER_ABILITIES_PACKET = NettyUtils.constBuffer(new WrapperPlayServerPlayerAbilities(true, false, false, false, 0.05f, 0.1f));
 
+    public static final ByteBuf MESSAGE = OutMessagePacketConstructor.constructConst(GoogleAuthExplanation.COMBINED);
+
     public static void showQRCode(VerifiedUser user, Player player) {
         if (user == null) return;
 
@@ -101,7 +103,7 @@ public final class GoogleAuth {
                         user.writeConstSilently(PLAYER_ABILITIES_PACKET);
                         for (ByteBuf buf : buffers) user.writeSilently(buf);
 
-                        user.writeConstSilently(AuthReminder.MESSAGE);
+                        user.writeConstSilently(MESSAGE);
                         //user.flush();
                         MethodProvider.closeInventoryAsyncSilently(user.silentContext());//serves as a flush
                     });

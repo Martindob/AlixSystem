@@ -23,7 +23,7 @@ import org.slf4j.Logger;
 import java.nio.file.Path;
 
 @MainClass
-@Plugin(id = "alixsystem", name = "AlixSystem", version = "1.4.1", description = "AntiBot & Login System", url = "https://builtbybit.com/resources/alixvelocity.61304/",
+@Plugin(id = "alixsystem", name = "AlixSystem", version = "1.5.0", description = "AntiBot & Login System", url = "https://builtbybit.com/resources/alixvelocity.61304/",
         authors = "ShadowOfHeaven", dependencies = {@Dependency(id = "floodgate", optional = true), @Dependency(id = "geyser", optional = true)})
 public final class VelocityAlixMain implements AlixLoggerProvider, AlixMain {
 

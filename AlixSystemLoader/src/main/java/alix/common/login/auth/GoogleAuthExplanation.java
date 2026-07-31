@@ -1,41 +1,15 @@
-package shadow.systems.login.reminder;
+package alix.common.login.auth;
 
 import alix.common.messages.Messages;
-import alix.common.utils.other.throwable.AlixError;
-import io.netty.buffer.ByteBuf;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.ComponentBuilder;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
-import shadow.utils.misc.packet.constructors.OutMessagePacketConstructor;
-import shadow.utils.users.types.VerifiedUser;
 
-public final class AuthReminder {// implements Runnable {
+public final class GoogleAuthExplanation {
 
-    public static final long MESSAGE_RESEND_DELAY = 3000;
-    public static final ByteBuf MESSAGE;
-    //private final ScheduledFuture<?> future;
-    //private final VerifiedUser user;
-
-    private AuthReminder(VerifiedUser user) {
-        //this.future = user.getChannel().eventLoop().scheduleAtFixedRate(this, 500L, MESSAGE_RESEND_DELAY, TimeUnit.MILLISECONDS);
-        //this.user = user;
-        throw new AlixError("AuthReminder should not be used");
-    }
-
-/*    public void cancel() {
-        //this.future.cancel(false);
-    }*/
-
-/*    public static AuthReminder reminderFor(VerifiedUser user) {
-        return new AuthReminder(user);
-    }*/
-
-/*    @Override
-    public void run() {
-        this.user.writeAndFlushConstSilently(MESSAGE);
-    }*/
+    public static final Component COMBINED;
 
     static {
         TextComponent confirm = Component.text(Messages.get("google-auth-setting-confirm"));
@@ -57,7 +31,7 @@ public final class AuthReminder {// implements Runnable {
         combined.append(cancel);
         combined.append(newLine);
 
-        MESSAGE = OutMessagePacketConstructor.constructConst(combined.build());
+        COMBINED = combined.build();
     }
 
     private static Component concat(String[] lines, String separator) {

@@ -1,7 +1,9 @@
 package alix.common.database;
 
 import alix.common.AlixCommonMain;
+import alix.common.data.AuthSetting;
 import alix.common.data.Identity;
+import alix.common.data.LoginType;
 import alix.common.data.PersistentUserData;
 import alix.common.data.premium.PremiumData;
 import alix.common.data.security.password.Password;
@@ -11,7 +13,9 @@ import alix.common.utils.config.ConfigParams;
 
 import java.net.InetAddress;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public interface DatabaseUpdater {
 
@@ -19,12 +23,18 @@ public interface DatabaseUpdater {
         String player = "sex";
         //this.insertUser(player, UUID.nameUUIDFromBytes(player.getBytes(StandardCharsets.UTF_8)), System.currentTimeMillis(), Password.createRandom());
         PersistentUserData.createDefault(player, InetAddress.getLoopbackAddress(), Password.createRandom());
-        this.clearPasswordPointer(player);
+        this.clearPasswordPointers(player);
         this.updateLastSuccessfulLoginByName(player, 96_240L);
         this.updateIpByName(player, "127.0.0.1");
         this.updatePasswordByOwner(player, Password.fromUnhashed("zpedałami"));
         this.setPremiumData(player, PremiumData.createNew(UUID.randomUUID()));
     }
+
+    default boolean isImpl() {
+        return this instanceof DatabaseUpdaterImpl;
+    }
+
+    CompletableFuture<Void> loadAllUsers(Map<String, PersistentUserData> map);
 
     void connect();
 
@@ -32,7 +42,7 @@ public interface DatabaseUpdater {
 
     void createTablesSync();
 
-    void clearPasswordPointer(String name);
+    void clearPasswordPointers(String name);
 
     void updateLastSuccessfulLoginByName(String name, long lastSuccessfulLogin);
 
@@ -42,11 +52,25 @@ public interface DatabaseUpdater {
 
     void setPremiumData(String name, PremiumData data);
 
-    void setPassword(String name, Password newPass, Password oldPass);
+    void setPassword(String name, Password newPass, boolean isMain);
 
     void saveUserToken(Identity identity, String token);
 
     PersistentUserData loadUser(String name);
+
+    void updateAuthSettingsByName(String name, AuthSetting authSettings);
+
+    void updateHasProvenAuthAccessByName(String name, boolean hasProvenAuthAccess);
+
+    void updateIpAutoLoginByName(String name, Boolean ipAutoLogin);
+
+    void updateLoginTypeByName(String name, LoginType loginType);
+
+    void updateExtraLoginTypeByName(String name, LoginType extraLoginType);
+
+    void updateEmailByName(String name, String email);
+
+    void removeByName(String name);
 
     DatabaseType getType();
 

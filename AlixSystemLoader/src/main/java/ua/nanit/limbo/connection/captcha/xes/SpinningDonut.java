@@ -1,6 +1,7 @@
 package ua.nanit.limbo.connection.captcha.xes;
 
 import alix.common.antibot.captcha.CaptchaImageGenerator;
+import alix.common.utils.image.ImageGenerator;
 import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
@@ -155,7 +156,7 @@ public final class SpinningDonut implements Runnable {
         // Clear the image
         Graphics2D g2d = image.createGraphics();
         //g2d.setColor(Color.BLACK);
-        g2d.setColor(CaptchaImageGenerator.NO_COLOR);
+        g2d.setColor(ImageGenerator.NO_COLOR);
         g2d.fillRect(0, 0, width, height);
 
         // Arrays for storing z values and characters

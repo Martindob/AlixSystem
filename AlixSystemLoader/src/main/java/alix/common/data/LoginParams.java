@@ -1,6 +1,7 @@
 package alix.common.data;
 
 import alix.common.data.security.password.Password;
+import alix.common.database.DatabaseUpdater;
 import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.config.ConfigParams;
 import org.jetbrains.annotations.NotNull;
@@ -8,13 +9,17 @@ import org.jetbrains.annotations.Nullable;
 
 public final class LoginParams {
 
+    private static final DatabaseUpdater database = DatabaseUpdater.INSTANCE;
+
+    private final PersistentUserData data;
     private volatile Password password, extraPassword;
     private volatile LoginType loginType, extraLoginType;
     private volatile Boolean ipAutoLogin;
     private volatile AuthSetting authSettings;
     private volatile boolean hasProvenAuthAccess;
 
-    LoginParams(String line) {
+    LoginParams(PersistentUserData data, String line) {
+        this.data = data;
         String[] a = line.split(";");
         this.password = Password.readFromSaved(a[0]);
         if (a.length >= 2) {
@@ -22,7 +27,8 @@ public final class LoginParams {
         }
     }
 
-    LoginParams(Password password) {
+    LoginParams(PersistentUserData data, Password password) {
+        this.data = data;
         this.password = password;
         this.loginType = ConfigParams.defaultLoginType;
         this.authSettings = AuthSetting.PASSWORD;
@@ -64,15 +70,48 @@ public final class LoginParams {
 
     public void setAuthSettings(AuthSetting authSettings) {
         this.authSettings = authSettings;
+        database.updateAuthSettingsByName(this.name(), authSettings);
+    }
+
+    public void setHasProvenAuthAccess(boolean hasProvenAuthAccess) {
+        this.hasProvenAuthAccess = hasProvenAuthAccess;
+        database.updateHasProvenAuthAccessByName(this.name(), hasProvenAuthAccess);
+    }
+
+    public void setIpAutoLogin(boolean ipAutoLogin) {
+        this.ipAutoLogin = ipAutoLogin;
+        database.updateIpAutoLoginByName(this.name(), ipAutoLogin);
+    }
+
+    public void setPassword(@NotNull Password password) {
+        this.password = password;
+
+        database.setPassword(this.name(), password, true);
+    }
+
+    public void setExtraPassword(@Nullable Password extraPassword) {
+        this.extraPassword = extraPassword;
+
+        database.setPassword(this.name(), extraPassword, false);
+    }
+
+    public void setLoginType(LoginType loginType) {
+        this.loginType = loginType;
+        database.updateExtraLoginTypeByName(this.name(), extraLoginType);
+    }
+
+    public void setExtraLoginType(LoginType extraLoginType) {
+        this.extraLoginType = extraLoginType;
+        database.updateLoginTypeByName(this.name(), loginType);
+    }
+
+    String name() {
+        return this.data.getName();
     }
 
     @NotNull
     public AuthSetting getAuthSettings() {
         return authSettings;
-    }
-
-    public void setHasProvenAuthAccess(boolean hasProvenAuthAccess) {
-        this.hasProvenAuthAccess = hasProvenAuthAccess;
     }
 
     public boolean hasProvenAuthAccess() {
@@ -84,15 +123,11 @@ public final class LoginParams {
     }
 
     public boolean getIpAutoLogin() {
-        return ipAutoLogin == null ? ConfigParams.playerIPAutoLogin : ipAutoLogin;//default to config if not set manually by the user
+        return ipAutoLogin == null ? ConfigParams.playerIPAutoLogin : ipAutoLogin;
     }
 
     public Boolean getRawIpAutoLogin() {
         return this.ipAutoLogin;
-    }
-
-    public void setIpAutoLogin(boolean ipAutoLogin) {
-        this.ipAutoLogin = ipAutoLogin;
     }
 
     @NotNull
@@ -100,34 +135,16 @@ public final class LoginParams {
         return password;
     }
 
-    public void setPassword(@NotNull Password password) {
-        this.password = password;
-    }
-
     @Nullable
     public Password getExtraPassword() {
         return extraPassword;
     }
 
-    public void setExtraPassword(@Nullable Password extraPassword) {
-        this.extraPassword = extraPassword;
-    }
-
-    LoginType getLoginType() {
+    public LoginType getLoginType() {
         return loginType;
-    }
-
-    void setLoginType(LoginType loginType) {
-        this.loginType = loginType;
     }
 
     public LoginType getExtraLoginType() {
         return extraLoginType;
     }
-
-    public void setExtraLoginType(LoginType extraLoginType) {
-        this.extraLoginType = extraLoginType;
-    }
-
-
 }

@@ -34,7 +34,7 @@ public final class EmailHandler {
 
     //caller -> code
     private static final Map<Object, EmailVerificationSession> VERIFY_CODES = AlixCache.newBuilder().maximumSize(512).<Object, EmailVerificationSession>build().asMap();
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}$");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     public static <T> void sendVerifyMail(T caller, String email, boolean console, BiConsumer<T, String> sendMessage) {
         if (!EMAIL_PATTERN.matcher(email).matches()) {
@@ -47,7 +47,7 @@ public final class EmailHandler {
 
         sendMessage.accept(caller, Messages.get("verify-mail.requesting-send"));
         sendEmail(email, Messages.get("verify-mail.email-subject"), Messages.get("verify-mail.email-body",
-                console ? "/as verifymail " + verifyCode : "/verifyemail " + verifyCode)).whenComplete((v, ex) -> {
+                console ? "/as verifyemail " + verifyCode : "/account verifyemail " + verifyCode)).whenComplete((v, ex) -> {
             if (ex != null) {
                 sendMessage.accept(caller, Messages.get("verify-mail.send-failed"));
                 return;
@@ -56,10 +56,44 @@ public final class EmailHandler {
         });
     }
 
+    public static <T> void sendRecoveryMail(T caller, String email, BiConsumer<T, String> sendMessage) {
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            sendMessage.accept(caller, Messages.getWithPrefix("verify-mail.invalid-email"));
+            return;
+        }
+
+        var verifyCode = AlixCommonUtils.generateCode(6);
+        VERIFY_CODES.put(caller, new EmailVerificationSession(verifyCode, email));
+
+        sendMessage.accept(caller, Messages.getWithPrefix("verify-mail.requesting-send"));
+        sendEmail(email, Messages.get("email-recovery-subject"), Messages.get("email-recovery-body", verifyCode)).whenComplete((v, ex) -> {
+            //AlixCommonMain.logInfo("CALLED " + ex);
+            if (ex != null) {
+                sendMessage.accept(caller, Messages.getWithPrefix("verify-mail.send-failed"));
+                return;
+            }
+            try {
+                sendMessage.accept(caller, Messages.getWithPrefix("email-recovery-code-sent"));
+            } catch (Exception e) {
+                AlixCommonUtils.logException(e);
+            }
+        });
+    }
+
+    public static <T> boolean verifyRecoveryCode(T caller, String code) {
+        var session = VERIFY_CODES.get(caller);
+        if (session == null) return false;
+        if (code != null && code.trim().equals(session.code())) {
+            VERIFY_CODES.remove(caller);
+            return true;
+        }
+        return false;
+    }
+
     public static <T> void verifyMail(T caller, PersistentUserData data, String code, boolean console, BiConsumer<T, String> sendMessage) {
         var session = VERIFY_CODES.get(caller);
         if (session == null) {
-            sendMessage.accept(caller, Messages.get("verify-mail.send-first", console ? "/as sendverifymail" : "/sendverifymail"));
+            sendMessage.accept(caller, Messages.get("verify-mail.send-first", console ? "/as sendverifyemail" : "/account sendverifyemail"));
             return;
         }
         if (!code.equals(session.code())) {
@@ -114,7 +148,7 @@ public final class EmailHandler {
         switch (port) {
             case 465 -> {
                 mail.setSslSmtpPort(String.valueOf(port));
-                mail.setSSLOnConnect(false);
+                mail.setSSLOnConnect(true);//why was it false?
             }
             case 587 -> {
                 mail.setStartTLSEnabled(true);

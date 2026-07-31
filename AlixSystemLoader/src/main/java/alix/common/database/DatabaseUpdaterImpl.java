@@ -16,7 +16,10 @@ import alix.common.utils.other.keys.secret.MapSecretKey;
 
 import java.net.InetAddress;
 import java.sql.*;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static alix.common.database.QueryConstants.*;
@@ -26,6 +29,9 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
 
     private static final LocationListProvider HOMES_PROVIDER = LocationListProvider.IMPL;
     private final DatabaseConnector database;
+
+    // Stores active execution chains per player key to guarantee FIFO ordering per player
+    private final Map<String, CompletableFuture<Void>> playerExecutionChains = new ConcurrentHashMap<>(); //AlixCache.newBuilder().expireAfterWrite(10, TimeUnit.SECONDS).<String, CompletableFuture<Void>>build().asMap();
 
     DatabaseUpdaterImpl(DatabaseConnector database) {
         this.database = database;
@@ -47,16 +53,67 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
         });
     }
 
+    /**
+     * Enqueues an asynchronous query sequentially for a specific player key.
+     *
+     * @param playerKey Player name or identifier
+     * @param func      Database query callback
+     */
+    void queryAsync(String playerKey, ThrowableConsumer<Connection, Exception> func) {
+        if (playerKey == null) {
+            // Unbound query fallback
+            this.async(() -> this.query(func));
+            return;
+        }
+
+        playerExecutionChains.compute(playerKey, (k, currentChain) -> {
+            CompletableFuture<Void> nextTask;
+
+            if (currentChain == null) {
+                // First query
+                nextTask = CompletableFuture.runAsync(() -> this.query(func), AlixScheduler::asyncBlocking);
+            } else {
+                // Chain execution
+                nextTask = currentChain.handleAsync((res, ex) -> {
+                    this.query(func);
+                    return null;
+                }, AlixScheduler::asyncBlocking);
+            }
+
+            // clean-up
+            nextTask.whenComplete((res, ex) -> playerExecutionChains.remove(k, nextTask));
+            return nextTask;
+        });
+    }
+
     @Override
     public void saveUserToken(Identity identity, String token) {
         UUID tokenUuid = getOfflineModeUuid(identity.identity());
-        this.queryAsync(connection -> {
+        this.queryAsync(identity.identity(), connection -> {
             try (PreparedStatement ps = connection.prepareStatement(INSERT_TOKEN_SQL(this.getType()))) {
                 setUuid(ps, 1, tokenUuid);
                 ps.setString(2, token);
                 ps.executeUpdate();
             }
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> loadAllUsers(Map<String, PersistentUserData> map) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        // Uses a forward-only fetch strategy for fast bulk streaming
+        this.query(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(LOAD_ALL_USERS);
+                 ResultSet rs = ps.executeQuery()) {
+
+                while (rs.next()) {
+                    var data = readData(rs);
+                    map.put(data.getName(), data);
+                }
+                future.complete(null);
+            }
+        });
+        return future;
     }
 
     @Override
@@ -69,7 +126,7 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
 
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next())
-                        result.set(readUser(rs));
+                        result.set(readData(rs));
                 }
             }
         });
@@ -77,7 +134,7 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
         return result.get();
     }
 
-    private PersistentUserData readUser(ResultSet rs) throws SQLException {
+    private PersistentUserData readData(ResultSet rs) throws SQLException {
         int i = 1;
 
         String name = rs.getString(i++);
@@ -87,10 +144,10 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
         String ipStr = rs.getString(i++);
         long mutedUntil = rs.getLong(i++);
 
-        LoginType loginType = LoginType.valueOf(rs.getString(i++));
+        LoginType loginType = parseEnumSafely(LoginType.class, rs.getString(i++), LoginType.COMMAND);
 
         String extraLoginTypeStr = rs.getString(i++);
-        LoginType extraLoginType = extraLoginTypeStr == null ? null : LoginType.valueOf(extraLoginTypeStr);
+        LoginType extraLoginType = parseEnumSafely(LoginType.class, extraLoginTypeStr, null);
 
         Boolean ipAutoLogin = getNullableBoolean(rs, i++);
         AuthSetting authSettings = AuthSetting.fromString(rs.getString(i++));
@@ -136,6 +193,15 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
         );
     }
 
+    private static <T extends Enum<T>> T parseEnumSafely(Class<T> enumClass, String value, T defaultValue) {
+        if (value == null) return defaultValue;
+        try {
+            return Enum.valueOf(enumClass, value);
+        } catch (IllegalArgumentException e) {
+            return defaultValue;
+        }
+    }
+
     private static Long getNullableLong(ResultSet rs, int index) throws SQLException {
         long value = rs.getLong(index);
         return rs.wasNull() ? null : value;
@@ -147,10 +213,13 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
     }
 
     private static UUID readUuid(ResultSet rs, int index) throws SQLException {
-        Object value = rs.getObject(index);
-        if (value == null) return null;
-        if (value instanceof UUID uuid) return uuid;
-        return UUID.fromString(value.toString());
+        String str = rs.getString(index);
+        if (str == null) return null;
+        try {
+            return UUID.fromString(str);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private static AlixLocationList readHomes(String saved) {
@@ -205,7 +274,7 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
 
     @Override
     public void saveData(PersistentUserData data) {
-        this.queryAsync(connection -> {
+        this.queryAsync(data.getName(), connection -> {
             boolean originalAutoCommit = connection.getAutoCommit();
             try {
                 connection.setAutoCommit(false);
@@ -286,10 +355,10 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
                 setUuid(ps, i++, premium.premiumUUID());
             } else if (premium.getStatus().isNonPremium()) {
                 ps.setInt(i++, -1);
-                ps.setNull(i++, Types.VARCHAR);
+                setUuid(ps, i++, null);
             } else {
                 ps.setInt(i++, 0);
-                ps.setNull(i++, Types.VARCHAR);
+                setUuid(ps, i++, null);
             }
 
             ps.executeUpdate();
@@ -303,10 +372,10 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
                 setUuid(ps, 2, data.premiumUUID());
             } else if (data.getStatus().isNonPremium()) {
                 ps.setInt(1, -1);
-                ps.setNull(2, Types.VARCHAR);
+                setUuid(ps, 2, null);
             } else {
                 ps.setInt(1, 0);
-                ps.setNull(2, Types.VARCHAR);
+                setUuid(ps, 2, null);
             }
 
             ps.setString(3, name);
@@ -341,25 +410,29 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
 
     @Override
     public void setPremiumData(String name, PremiumData data) {
-        this.queryAsync(connection -> updatePremiumData(connection, name, data));
+        this.queryAsync(name, connection -> updatePremiumData(connection, name, data));
     }
 
     @Override
-    public void setPassword(String name, Password newPass, Password oldPass) {
-        this.queryAsync(connection -> upsertPassword(connection, name, MAIN_PASSWORD_SLOT, newPass));
+    public void setPassword(String name, Password newPass, boolean isMain) {
+        this.queryAsync(name, connection -> upsertPassword(connection, name, isMain ? MAIN_PASSWORD_SLOT : EXTRA_PASSWORD_SLOT, newPass));
     }
 
     @Override
-    public void clearPasswordPointer(String name) {
-        this.queryAsync(connection -> {
-            deletePassword(connection, name, MAIN_PASSWORD_SLOT);
-            deletePassword(connection, name, EXTRA_PASSWORD_SLOT);
-        });
+    public void clearPasswordPointers(String name) {
+        this.queryAsync(name, connection -> clearPasswordPointers0(name, connection));
+    }
+
+    private void clearPasswordPointers0(String name, Connection connection) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(CLEAR_PASSWORD_POINTERS)) {
+            ps.setString(1, name);
+            ps.executeUpdate();
+        }
     }
 
     @Override
     public void updateLastSuccessfulLoginByName(String name, long lastSuccessfulLogin) {
-        this.queryAsync(connection -> {
+        this.queryAsync(name, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(UPDATE_USERS_LAST_LOGIN_SQL)) {
                 ps.setLong(1, lastSuccessfulLogin);
                 ps.setString(2, name);
@@ -370,7 +443,7 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
 
     @Override
     public void updateIpByName(String name, String ip) {
-        this.queryAsync(connection -> {
+        this.queryAsync(name, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(UPDATE_USERS_IP_SQL)) {
                 ps.setString(1, ip);
                 ps.setString(2, name);
@@ -381,7 +454,84 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
 
     @Override
     public void updatePasswordByOwner(String ownerName, Password password) {
-        this.queryAsync(connection -> upsertPassword(connection, ownerName, MAIN_PASSWORD_SLOT, password));
+        this.queryAsync(ownerName, connection -> upsertPassword(connection, ownerName, MAIN_PASSWORD_SLOT, password));
+    }
+
+    @Override
+    public void updateAuthSettingsByName(String name, AuthSetting authSettings) {
+        this.query(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(UPDATE_AUTH_SETTINGS_BY_NAME)) {
+                ps.setString(1, authSettings != null ? authSettings.name() : null);
+                ps.setString(2, name);
+                ps.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void updateHasProvenAuthAccessByName(String name, boolean hasProvenAuthAccess) {
+        this.query(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(UPDATE_HAS_PROVEN_AUTH_ACCESS_BY_NAME)) {
+                ps.setBoolean(1, hasProvenAuthAccess);
+                ps.setString(2, name);
+                ps.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void updateIpAutoLoginByName(String name, Boolean ipAutoLogin) {
+        this.query(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(UPDATE_IP_AUTO_LOGIN_BY_NAME)) {
+                ps.setObject(1, ipAutoLogin);
+                ps.setString(2, name);
+                ps.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void updateLoginTypeByName(String name, LoginType loginType) {
+        this.query(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(UPDATE_LOGIN_TYPE_BY_NAME)) {
+                ps.setString(1, loginType != null ? loginType.name() : null);
+                ps.setString(2, name);
+                ps.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void updateExtraLoginTypeByName(String name, LoginType extraLoginType) {
+        this.query(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(UPDATE_EXTRA_LOGIN_TYPE_BY_NAME)) {
+                ps.setString(1, extraLoginType != null ? extraLoginType.name() : null);
+                ps.setString(2, name);
+                ps.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void updateEmailByName(String name, String email) {
+        this.query(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(UPDATE_EMAIL_BY_NAME)) {
+                ps.setString(1, email);
+                ps.setString(2, name);
+                ps.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void removeByName(String name) {
+        this.query(connection -> {
+            this.clearPasswordPointers0(name, connection);
+            try (PreparedStatement ps = connection.prepareStatement(REMOVE_USER_BY_NAME)) {
+                ps.setString(1, name);
+                ps.executeUpdate();
+            }
+        });
     }
 
     private void setUuid(PreparedStatement ps, int index, UUID uuid) throws SQLException {
@@ -422,19 +572,21 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
     }
 
     void queryAsync(String query) {
-        this.queryAsync(connection -> {
+        this.async(() -> this.query(connection -> {
             try (var stmt = connection.prepareStatement(query)) {
                 stmt.execute();
             }
-        });
+        }));
     }
 
     private static final class AutoErrorReport implements ThrowableConsumer<Connection, Exception> {
 
         final ThrowableConsumer<Connection, Exception> delegate;
+        final DatabaseType dbType;
 
-        private AutoErrorReport(ThrowableConsumer<Connection, Exception> delegate) {
+        private AutoErrorReport(ThrowableConsumer<Connection, Exception> delegate, DatabaseType dbType) {
             this.delegate = delegate;
+            this.dbType = dbType;
         }
 
         @Override
@@ -446,9 +598,9 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
                 for (int i = 1; i < stackTrace.length; i++) {
                     var frame = stackTrace[i];
                     if (frame.getClassName().equals(this.getClass().getName())) {
-                        var errAt = stackTrace[i - 1];//>= 0
+                        var errAt = stackTrace[i - 1];
                         int line = errAt.getLineNumber();
-                        AlixCommonMain.logError("Error at line=" + line + ", type=" + DatabaseUpdater.INSTANCE.getType() + ", in=" + errAt.getMethodName());
+                        AlixCommonMain.logError("Error at line=" + line + ", type=" + this.dbType + ", in=" + errAt.getMethodName());
                         break;
                     }
                 }
@@ -457,12 +609,8 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
         }
     }
 
-    void queryAsync(ThrowableConsumer<Connection, Exception> func) {
-        this.async(() -> this.query(func));
-    }
-
     void query(ThrowableConsumer<Connection, Exception> func) {
-        this.database.query(new AutoErrorReport(func));
+        this.database.query(new AutoErrorReport(func, this.getType()));
     }
 
     void async(Runnable r) {

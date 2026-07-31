@@ -1,5 +1,7 @@
 package alix.common.data.settings;
 
+import java.util.Objects;
+
 public final class ServerSettingsManager {
 
     static final ServerSettings settings = new ServerSettings();
@@ -8,7 +10,11 @@ public final class ServerSettingsManager {
         settings.loadExceptionless();
     }
 
-    public static <T> void set(Setting setting, T value) {
+    public static <T> boolean is(Setting<T> setting, T value) {
+        return Objects.equals(get(setting), value);
+    }
+
+    public static <T> void set(Setting<T> setting, T value) {
         settings.set(setting, value);
     }
 

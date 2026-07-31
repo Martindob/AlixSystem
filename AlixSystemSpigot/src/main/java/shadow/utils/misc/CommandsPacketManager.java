@@ -28,7 +28,7 @@ public final class CommandsPacketManager {
         List<String> aliases = AlixCommandManager.getCommand("login").createAliasesList();
         aliases.add("login");
 
-        return constructOneArg(aliases, Messages.get("commands-login-password-arg"), supportAllChars, WrapperTransformer.CONST, version);
+        return constructOneArg(aliases, Messages.get("commands-login-password-arg"), WrapperTransformer.CONST, version);
     }
 
     private static ByteBuf constructRegister() {
@@ -36,9 +36,9 @@ public final class CommandsPacketManager {
         aliases.add("register");
 
         if (AlixUtils.requirePasswordRepeatInRegister)
-            return constructTwoArg(aliases, Messages.get("commands-register-password-arg"), Messages.get("commands-register-password-second-arg"), supportAllChars, NettyUtils::constBuffer, version);
+            return constructTwoArg(aliases, Messages.get("commands-register-password-arg"), Messages.get("commands-register-password-second-arg"), NettyUtils::constBuffer, version);
 
-        return constructOneArg(aliases, Messages.get("commands-register-password-arg"), supportAllChars, WrapperTransformer.CONST, version);
+        return constructOneArg(aliases, Messages.get("commands-register-password-arg"), WrapperTransformer.CONST, version);
     }
 
     public static void writeAndFlush(UnverifiedUser user) {

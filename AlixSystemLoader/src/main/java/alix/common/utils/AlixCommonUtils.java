@@ -22,6 +22,7 @@ import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static alix.common.utils.config.ConfigParams.defaultLoginType;
@@ -45,6 +46,20 @@ public final class AlixCommonUtils {
                 invalidCharacterMessage = Messages.getWithPrefix("password-invalid-character"),
                 invalidCharacterBlankMessage = Messages.getWithPrefix("password-invalid-character-blank"),
                 pinTypeInvalid = Messages.getWithPrefix("gui-pin-type-invalid");
+    }
+
+    public static <T> void debug(T[] message, Function<T, String> formatting, char separator) {
+        StringBuilder sb = new StringBuilder();
+        for (T o : message) sb.append(formatting.apply(o)).append(separator);
+        AlixCommonMain.logInfo(sb.substring(0, Math.max(0, sb.length() - 1)));
+    }
+
+    public static <T> void debug(T[] message, Function<T, String> formatting) {
+        debug(message, formatting, '\n');
+    }
+
+    public static <T> void debug(T[] message) {
+        debug(message, T::toString);
     }
 
     public static String prettyTime(long seconds) {

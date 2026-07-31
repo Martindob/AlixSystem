@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2020 Nan1t
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package ua.nanit.limbo.connection.pipeline;
 
 import alix.common.connection.profiler.ConnectionStage;
@@ -29,12 +12,13 @@ import io.netty.handler.codec.ByteToMessageDecoder.Cumulator;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.AttributeKey;
-import io.netty.util.ByteProcessor;
+import io.netty.util.ReferenceCountUtil;
 import ua.nanit.limbo.NanoLimbo;
 import ua.nanit.limbo.connection.ClientConnection;
 import ua.nanit.limbo.connection.UnsafeCloseFuture;
 import ua.nanit.limbo.connection.pipeline.encryption.CipherHandler;
 import ua.nanit.limbo.protocol.packets.PacketUtils;
+import ua.nanit.limbo.protocol.registry.State;
 import ua.nanit.limbo.server.Log;
 
 import java.net.InetSocketAddress;
@@ -81,6 +65,9 @@ public final class VarIntFrameDecoder extends ChannelInboundHandlerAdapter {
             int refCnt = buf.refCnt();
             if (refCnt != 0) buf.release(refCnt);
         });*/
+        var msg = this.haProxyMessage;
+        if (msg != null)
+            ReferenceCountUtil.release(msg);
     }
 
     /*public void resendCollected(Channel channel) {
@@ -88,7 +75,7 @@ public final class VarIntFrameDecoder extends ChannelInboundHandlerAdapter {
     }*/
 
     /*public void resendCollected() {
-        *//*this.forEachCollected(buf ->
+     *//*this.forEachCollected(buf ->
                 channel.pipeline().fireChannelRead(buf.readerIndex(0)));*//*
         //readerIndex is already set by BufSet12
         this.forEachCollected(buf -> this.connection.getChannel().pipeline().fireChannelRead(buf.readerIndex(0)));
@@ -114,8 +101,8 @@ public final class VarIntFrameDecoder extends ChannelInboundHandlerAdapter {
         if (e.inEventLoop()) this.cleanUp();
         else {
             //normally, a terrible idea, here however, should be good enough
-            if (this.cumulation != null)
-                e.execute(this::cleanUp);
+            //if (this.cumulation != null)
+            e.execute(this::cleanUp);
         }
     }
 
@@ -144,7 +131,7 @@ public final class VarIntFrameDecoder extends ChannelInboundHandlerAdapter {
             return;
 
         try {
-            var addr = InetSocketAddress.createUnresolved(message.sourceAddress(), message.sourcePort());
+            var addr = new InetSocketAddress(message.sourceAddress(), message.sourcePort());
             channel.attr(PROXY_ADDRESS_KEY).set(addr);
             LimboJoinProfiler.update(channel, ConnectionStage.HA_PROXY_ADDRESS_ASSIGNED);
 
@@ -163,6 +150,7 @@ public final class VarIntFrameDecoder extends ChannelInboundHandlerAdapter {
         //two volatile reads should be good enough perf here, since arriving packets should be large enough to overshadow this minor perf dent
         if (!ctx.channel().isActive() || ctx.isRemoved()) {
             this.cleanUp();
+            ReferenceCountUtil.release(msg);
             return;
         }
 
@@ -214,25 +202,35 @@ public final class VarIntFrameDecoder extends ChannelInboundHandlerAdapter {
 
     //@Override
     private ByteBuf decode(ByteBuf in) {
-        int packetStart = in.forEachByte(ByteProcessor.FIND_NON_NUL);
+        //uhhh, is this correct? Can this be used to send null data packets without being detected?
+        /*int packetStart = in.forEachByte(ByteProcessor.FIND_NON_NUL);
         if (packetStart == -1) {
             in.clear();
             //in.readerIndex(0);
             return null;
-        }
+        }*/
         //the name of the var isn't exactly true ;]
         //pretty sure it returns true, like, always
         //not sure why
         //boolean notReadYet = in.readerIndex() == packetStart;
-        in.readerIndex(packetStart);
+        //in.readerIndex(packetStart);
+        int packetStart = in.readerIndex();
         in.markReaderIndex();
 
-        if (!in.isReadable()) return null;//I don't think this can ever be true here
+        //has at least 2 bytes - packet len & packet id
+        if (in.readableBytes() < 2) return null;
+
+        //make sure not to firewall legacy ping, since still sent by modern clients in case of no-response after a 30-second timeout
+        if (this.connection.getDecoderState() == State.HANDSHAKING && in.readableBytes() >= 3
+            && in.getByte(packetStart) == 0xFE && in.getByte(packetStart + 1) == 0x01 && in.getByte(packetStart + 2) == 0xFA) {
+            this.connection.close();
+            return null;
+        }
 
         int len = readVarIntPacketLength(in);
         //NettySafety.validateUserInputBufAlloc(len);
         //uhh, is it possible for this to be the result of fragmentation?
-        if (len <= 0) throw NettySafety.INVALID_PACKET_LEN;
+        //if (len < 0) throw NettySafety.INVALID_PACKET_LEN;
 
         //readVarIntPacketLength(...) returns 0 for partial VarInts with a continuation bit, and for actual VarInts read as a 0
         if (len == 0) {
@@ -332,44 +330,6 @@ public final class VarIntFrameDecoder extends ChannelInboundHandlerAdapter {
         preservedBytes = (preservedBytes & 0x007F) | ((preservedBytes & 0x7F00) >> 1);
         return preservedBytes;
     }
-    /*private static final class BufSet12 {
-
-        //Inspired by java's ImmutableCollections.List12 from List.of(e1, e2)
-
-        private ByteBuf buf1;
-        private ByteBuf buf2;
-
-        //HAProxyDecoder could've changed the reader index
-
-        //private int rIdx1;
-        //private int rIdx2;
-
-        private BufSet12() {
-        }
-
-        private void add(ByteBuf buf) {
-            if (this.buf1 == null) {
-                this.buf1 = buf;
-                //this.rIdx1 = buf.readerIndex();
-                return;
-            }
-            if (this.buf1 == buf) return;
-            this.buf2 = buf;
-            //this.rIdx2 = buf.readerIndex();
-        }
-
-        private void forEach(Consumer<ByteBuf> consumer) {
-            if (this.buf1 == null) return;
-
-            //this.buf1.readerIndex(this.rIdx1);
-            consumer.accept(this.buf1);
-
-            if (this.buf2 == null) return;
-
-            //this.buf2.readerIndex(this.rIdx2);
-            consumer.accept(this.buf2);
-        }
-    }*/
 
 /*    @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {

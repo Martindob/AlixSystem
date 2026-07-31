@@ -365,10 +365,10 @@ public final class UserVirtualization {
 
         */
 /*ChannelHandlerContext ctx = NettyUtils.getSilentContext((Channel) retrooperUser.getChannel());
-        for (ByteBuf packet : joinPackets) ctx.writeAndFlush(packet);
+        for (ByteBuf packet : joinPackets) ctx.write(packet);
         for (WrapperPlayServerChunkData chunk : wddfwdwdw(12)) {
             //Main.logInfo("SPOOFING " + chunk.getClass().getSimpleName());
-            ctx.writeAndFlush(NettyUtils.createBuffer(chunk));
+            ctx.write(NettyUtils.createBuffer(chunk));
         }*//*
 
     }
@@ -449,7 +449,7 @@ public final class UserVirtualization {
         WrapperPlayServerChunkData[] chunks = wddfwdwdw(3);
 
         //ChannelHandlerContext ctx = NettyUtils.getSilentContext((Channel) LoginVerdictManager.getExistingTempUser(player).reetrooperUser().getChannel());
-        //ctx.writeAndFlush(NettyUtils.dynamic(login, ctx));
+        //ctx.write(NettyUtils.dynamic(login, ctx));
 
         //user.sendPacketSilently(joinGame);
         //user.sendPacketSilently(new WrapperPlayServerRespawn());
@@ -459,12 +459,12 @@ public final class UserVirtualization {
             user.sendPacketSilently(chunk);
         }
         user.sendPacketSilently(new WrapperPlayServerInitializeWorldBorder(600000, 600000, 600000, 600000, 0, 0, 100, 0));
-        //ctx.writeAndFlush(NettyUtils.dynamic(new WrapperPlayServerUpdateEnabledFeatures(, ctx));
+        //ctx.write(NettyUtils.dynamic(new WrapperPlayServerUpdateEnabledFeatures(, ctx));
 
-        //ctx.writeAndFlush(NettyUtils.dynamic(new WrapperPlayServerSpawnPosition(spawnPos, 0), ctx));
-        //ctx.writeAndFlush(new WrapperConfigServerRegistryData(transformToNBTCompound(REGISTRY_DATA)));
-        //ctx.writeAndFlush(NettyUtils.dynamic(new WrapperConfigServerConfigurationEnd(), ctx));
-        //ctx.writeAndFlush(NettyUtils.dynamic(new WrapperPlayServerChangeGameState(WrapperPlayServerChangeGameState.Reason.START_LOADING_CHUNKS, 0), ctx));
+        //ctx.write(NettyUtils.dynamic(new WrapperPlayServerSpawnPosition(spawnPos, 0), ctx));
+        //ctx.write(new WrapperConfigServerRegistryData(transformToNBTCompound(REGISTRY_DATA)));
+        //ctx.write(NettyUtils.dynamic(new WrapperConfigServerConfigurationEnd(), ctx));
+        //ctx.write(NettyUtils.dynamic(new WrapperPlayServerChangeGameState(WrapperPlayServerChangeGameState.Reason.START_LOADING_CHUNKS, 0), ctx));
         user.sendPacketSilently(new WrapperPlayServerUpdateViewPosition(0, 0));
         user.sendPacketSilently(new WrapperPlayServerSpawnPosition(spawnPos, 0));
         //user.sendPacketSilently(new WrapperPlayServerPlayerPositionAndLook(0, 0, 0, 0, 0, (byte) 0, 1, false));

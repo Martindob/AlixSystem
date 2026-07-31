@@ -111,9 +111,9 @@ final class CaptchaStateImpl {
 
         if (now - lastExplosion > 1000) {
             var wrapper = new WrapperPlayServerExplosion(new Vector3d(0, 67, 0), new Vector3d(explosionStrength, explosionStrength, explosionStrength), new Particle<>(ParticleTypes.ANGRY_VILLAGER), Sounds.ENTITY_PLAYER_BURP);
-            this.writeAndFlush(new PacketPlayOutExplosion(wrapper));
+            this.write(new PacketPlayOutExplosion(wrapper));
 
-            this.connection.getChannel().eventLoop().schedule(() -> this.writeAndFlush(PacketSnapshots.PACKET_PLAYER_POS_AND_LOOK_VALID), 50, TimeUnit.MILLISECONDS);
+            this.connection.getChannel().eventLoop().schedule(() -> this.write(PacketSnapshots.PACKET_PLAYER_POS_AND_LOOK_VALID), 50, TimeUnit.MILLISECONDS);
             this.lastExplosion = now;
             //Log.warning("explosionStrength=" + explosionStrength);
             //this.explosionStrength *= 3;
@@ -325,7 +325,7 @@ final class CaptchaStateImpl {
         this.write(HeldItemSlots.INVALID);
         //the duplicate should be ignored
         this.write(HeldItemSlots.VALID);
-        this.writeAndFlush(HeldItemSlots.VALID);
+        this.write(HeldItemSlots.VALID);
 
         this.scheduleDisconnectTask(5, TimeUnit.SECONDS);
         this.awaitingHeldSlot = true;
@@ -358,7 +358,7 @@ final class CaptchaStateImpl {
                     this.connection.verify();
                 }
             }, 100, TimeUnit.MILLISECONDS);
-//            this.writeAndFlush(ArmAnimations.SELF_SWING);
+//            this.write(ArmAnimations.SELF_SWING);
 //
 //            this.awaitingArmAnimation = true;
         }
@@ -452,7 +452,7 @@ final class CaptchaStateImpl {
                 this.isCheckingCollision = false;
                 this.checkedCollision = true;
 
-                //this.writeAndFlush(new PacketPlayOutTransaction().setTransactionId(0));
+                //this.write(new PacketPlayOutTransaction().setTransactionId(0));
                 //this.isAwaitingTransaction = true;
 
                 //disable movement sending

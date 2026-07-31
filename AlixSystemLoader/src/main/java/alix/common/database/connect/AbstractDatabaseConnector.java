@@ -1,5 +1,6 @@
 package alix.common.database.connect;
 
+import alix.common.AlixCommonMain;
 import alix.common.database.ThrowableConsumer;
 import alix.common.database.ThrowableFunction;
 import alix.common.utils.other.throwable.AlixException;
@@ -46,12 +47,28 @@ abstract class AbstractDatabaseConnector implements DatabaseConnector {
         return () -> CONNECTORS.computeIfAbsent(clazz, supplier);
     }*/
 
+    void finishConfigSetUp() {
+        int cpuCores = Runtime.getRuntime().availableProcessors();
+        int poolSize = Math.max(10, (cpuCores * 2) + 2);
+
+        hikariConfig.setMaximumPoolSize(poolSize);
+        hikariConfig.setMinimumIdle(poolSize); // Fixed-size pool for steady performance
+
+        hikariConfig.setConnectionTimeout(20_000); // 20 seconds
+        hikariConfig.setValidationTimeout(3_000);    // 3 seconds
+
+        hikariConfig.setLeakDetectionThreshold(15_000);
+    }
+
     @SneakyThrows
     @Override
     public void connect() {
+        this.finishConfigSetUp();
+
         dataSource = new HikariDataSource(hikariConfig);
         connected = true;
         obtainInterface().close(); //Verify connection
+        AlixCommonMain.logInfo("Successfully connected to the database");
     }
 
     @Override

@@ -135,7 +135,7 @@ public final class AlixWorld {
         }
         try {
             Object destroyEntityPacket = ReflectionUtils.outDestroyEntityConstructor.newInstance(ids);
-            user.getBlocker().getChannel().writeAndFlush(destroyEntityPacket);
+            user.getBlocker().getChannel().write(destroyEntityPacket);
         } catch (Exception e) {
             throw new InternalError(e);
         }

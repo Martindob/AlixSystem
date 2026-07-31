@@ -186,11 +186,16 @@ public final class FireWallManager {
         return PanicModeManager.isBlocked(address);
     }
 
-    private static void removeDynamic0(InetAddress ip) {
-        dynamicMap.remove(ip);
-        if (ip instanceof Inet4Address ipv4) {
+    public static boolean removeDynamic(InetAddress ip) {
+        return removeDynamic0(ip);
+    }
+
+    private static boolean removeDynamic0(InetAddress ip) {
+        boolean removed = dynamicMap.remove(ip) != null;
+        if (ip instanceof Inet4Address ipv4)
             dynamicIpv4SetFastLookUp.remove(Integer.toUnsignedLong(IPUtils.ipv4Value(ipv4)));
-        }
+
+        return removed;
     }
 
     public static boolean isV4Blocked0(int ipv4Value) {
@@ -225,6 +230,10 @@ public final class FireWallManager {
         return dynamicMap.size();
     }
 
+    public static Set<InetAddress> dynamicBlockedSet() {
+        return dynamicMap.keySet();
+    }
+
     public static int getTotalBlocked() {
         return staticBlocked() + dynamicBlocked();
     }
@@ -237,8 +246,6 @@ public final class FireWallManager {
         AlixScheduler.async(() -> {
             if (ConfigParams.loadBuiltInIps) loadWithBuiltIn0();
             else loadWithoutBuiltIn0();
-
-            staticIpv4Tree.runOptimize();
         });
     }
 
@@ -257,9 +264,15 @@ public final class FireWallManager {
             file.load();
             int total = getTotalBlocked();
 
-            float MB = AlixMathUtils.round(staticIpv4Tree.getSizeInBytes() / 1e6f, 1);
+            staticIpv4Tree.runOptimize();
 
-            AlixCommonMain.logInfo("Fully loaded the FireWall DataBase. Loaded built-in blacklisted IPs: " + AlixCommonUtils.formatNicely(builtIn) + " (~" + MB + " MB), Blacklisted by this server: " + (total - builtIn) + ", Total: " + total);
+            //not accounting for object overhead in ipv6
+            long bytes = staticIpv4Tree.getLongSizeInBytes() + staticIpv6Set.size() * 16L;
+            float MB = AlixMathUtils.round(bytes / 1e6f, 1);
+
+            AlixCommonMain.logInfo("Fully loaded the FireWall DataBase. Loaded built-in blacklisted IPs: " + AlixCommonUtils.formatNicely(builtIn) +
+                                   " (~" + MB + " MB), Blacklisted by this server: " + AlixCommonUtils.formatNicely(total - builtIn) +
+                                   ", Total: " + AlixCommonUtils.formatNicely(total));
         } catch (Throwable e) {
             e.printStackTrace();
         }

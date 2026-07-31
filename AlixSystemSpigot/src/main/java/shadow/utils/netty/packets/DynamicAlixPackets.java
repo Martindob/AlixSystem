@@ -19,9 +19,9 @@ final class DynamicAlixPackets implements AlixPacket {
     }
 
     @Override
-    public void writeAndFlush(AlixUser user) {
+    public void write(AlixUser user) {
         if (this.buffers.length == 1) {
-            user.silentContext().writeAndFlush(this.buffers[0]);
+            user.silentContext().write(this.buffers[0]);
             return;
         }
         for (ByteBuf buf : this.buffers) user.silentContext().write(buf);

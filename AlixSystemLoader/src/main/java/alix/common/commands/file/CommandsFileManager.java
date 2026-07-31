@@ -15,6 +15,10 @@ public final class CommandsFileManager {
         return commandsFile.getAlixCommands().get(cmd);
     }
 
+    public static String[] getAliases(String cmd) {
+        return getCommand(cmd).getAliasesNotNull();
+    }
+
 /*    public static boolean isLoginCommand(String cmd) {
         return commandsFile.getLoginCommands().contains(cmd);
     }*/

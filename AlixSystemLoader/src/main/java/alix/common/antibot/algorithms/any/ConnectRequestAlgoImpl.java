@@ -9,6 +9,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelPromise;
 import ua.nanit.limbo.NanoLimbo;
+import ua.nanit.limbo.protocol.packets.PacketUtils;
 import ua.nanit.limbo.server.Log;
 
 import java.net.InetAddress;
@@ -74,7 +75,8 @@ public final class ConnectRequestAlgoImpl {
     public static void close(Channel channel, ByteBuf buf) {
         LimboJoinProfiler.update(channel, ConnectionStage.CLOSE_INVOKED);
         var promise = channel.newPromise();
-        channel.unsafe().write(buf, promise);
+
+        PacketUtils.unsafeWrite(channel, buf, promise);
         channel.unsafe().flush();
 
         boolean registered = channel.isRegistered();

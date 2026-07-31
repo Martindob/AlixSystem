@@ -4,35 +4,30 @@ import alix.common.data.LoginType;
 import alix.common.data.PersistentUserData;
 import alix.common.messages.Messages;
 import alix.common.packets.inventory.AlixInventoryType;
+import alix.common.utils.config.ConfigProvider;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
 import ua.nanit.limbo.connection.ClientConnection;
 import ua.nanit.limbo.connection.login.LoginState;
 import ua.nanit.limbo.connection.pipeline.PacketDuplexHandler;
-import ua.nanit.limbo.protocol.snapshot.PacketSnapshot;
 import ua.nanit.limbo.protocol.packets.play.PacketPlayOutMessage;
-import ua.nanit.limbo.protocol.packets.play.disconnect.PacketPlayOutDisconnect;
 import ua.nanit.limbo.protocol.packets.play.inventory.PacketPlayOutInventoryItems;
 import ua.nanit.limbo.protocol.packets.play.inventory.PacketPlayOutInventoryOpen;
+import ua.nanit.limbo.protocol.snapshot.PacketSnapshot;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static ua.nanit.limbo.connection.login.packets.SoundPackets.*;
 import static ua.nanit.limbo.connection.login.gui.LimboAuthBuilder.*;
+import static ua.nanit.limbo.connection.login.packets.SoundPackets.*;
 
 public final class LimboPinBuilder implements LimboGUI {
 
-    public static final PacketSnapshot incorrectPasswordKickPacket
-            = PacketPlayOutDisconnect.snapshot("&cIncorrect password");
-
-    private static final PacketSnapshot
-            incorrectPasswordMessagePacket = PacketPlayOutMessage.snapshot("&cIncorrect password"),
-            pinInvalidLengthMessagePacket = PacketPlayOutMessage.snapshot("&cPin invalid length");
+    private static final PacketSnapshot pinInvalidLengthMessagePacket = PacketPlayOutMessage.snapshot("&cPin invalid length");
 
     private static final int[] PIN_DIGIT_SLOTS = new int[]{28, 0, 1, 2, 9, 10, 11, 18, 19, 20};
-    public static final int maxLoginAttempts = 2;
+    public static final int maxLoginAttempts = ConfigProvider.config.getInt("max-login-attempts");
     private static final boolean pinAutoConfirm = true;
     //private static final String pinRegister = Messages.get("pin-register");
     //private static final AlixMessage pinRegisterBottomLine = Messages.getAsObject("pin-register-bottom-line");
@@ -42,12 +37,14 @@ public final class LimboPinBuilder implements LimboGUI {
             PIN_CONFIRM_ITEM = of(ItemTypes.GREEN_WOOL, Messages.get("pin-confirm")),
             PIN_LAST_REMOVE_ITEM = of(ItemTypes.YELLOW_WOOL, Messages.get("pin-remove-last")),
             PIN_RESET_ITEM = of(ItemTypes.RED_WOOL, Messages.get("pin-reset")),
-            PIN_LEAVE_ITEM = of(ItemTypes.BLACK_WOOL, Messages.get("pin-leave"));
+            PIN_LEAVE_ITEM = of(ItemTypes.BLACK_WOOL, Messages.get("pin-leave")),
+            RECOVER_ITEM = of(ItemTypes.PAPER, Messages.get("gui-recover-account"));
     private static final int
             ACTION_PIN_CONFIRM = 22,
             ACTION_LAST_REMOVE = 23,
             ACTION_RESET = 24,
-            ACTION_LEAVE = 25;
+            ACTION_LEAVE = 25,
+            ACTION_RECOVER = 26;
 
     private static final ItemStack[] pinVerificationGuiItems = createPINVerificationItems();
 
@@ -74,8 +71,13 @@ public final class LimboPinBuilder implements LimboGUI {
         this.data = data;
         this.loginState = loginState;
         this.items = new ArrayList<>(Arrays.asList(pinVerificationGuiItems));
+        if (data != null && data.canUseEmailRecovery()) {
+            this.items.set(ACTION_RECOVER, RECOVER_ITEM);
+            this.spoofWithSnapshot = false;
+        } else {
+            this.spoofWithSnapshot = true;
+        }
         this.invOpenPacket = PersistentUserData.isRegistered(data) ? registerInvOpen : loginInvOpen;
-        this.spoofWithSnapshot = true;
     }
 
     private void spoofAllItems() {
@@ -88,27 +90,10 @@ public final class LimboPinBuilder implements LimboGUI {
     }
 
     private static ItemStack[] createPINVerificationItems() {
-        //Inventory inv = createNew(null);//we do not care about the title
         ItemStack[] items = new ItemStack[36];
         Arrays.fill(items, BACKGROUND_ITEM);
 
-/*        for (byte i = 0; i < 36; i++) {
-            ItemStack item = items[i];
-            if (item == null || ItemTypes.isAir(item.getType())) items[i] = BACKGROUND_ITEM;
-        }*/
-
         for (byte i = 0; i <= 9; i++) items[PIN_DIGIT_SLOTS[i]] = DIGITS[i];
-
-/*        items[DIGIT_0, digits[0]);
-        items[DIGIT_1, digits[1]);
-        items[DIGIT_2, digits[2]);
-        items[DIGIT_3, digits[3]);
-        items[DIGIT_4, digits[4]);
-        items[DIGIT_5, digits[5]);
-        items[DIGIT_6, digits[6]);
-        items[DIGIT_7, digits[7]);
-        items[DIGIT_8, digits[8]);
-        items[DIGIT_9, digits[9]);*/
 
         items[ACTION_PIN_CONFIRM] = PIN_CONFIRM_ITEM;
         items[ACTION_LAST_REMOVE] = PIN_LAST_REMOVE_ITEM;
@@ -209,6 +194,11 @@ public final class LimboPinBuilder implements LimboGUI {
 
         if (slot == ACTION_RESET) {
             this.resetPin0();
+            return false;
+        }
+
+        if (slot == ACTION_RECOVER && this.data != null && this.data.canUseEmailRecovery()) {
+            this.loginState.openRecoveryEmailGui();
             return false;
         }
 

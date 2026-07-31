@@ -24,7 +24,7 @@ import java.util.function.Predicate;
 public abstract class AlixFileManager {
 
     private final File file;
-    private static final File INTERNAL_FOLDER, SECRETS_FOLDER;
+    public static final File INTERNAL_FOLDER, SECRETS_FOLDER;
 
     static {
         var path = AlixCommonMain.MAIN_CLASS_INSTANCE.getDataFolderPath().toAbsolutePath();

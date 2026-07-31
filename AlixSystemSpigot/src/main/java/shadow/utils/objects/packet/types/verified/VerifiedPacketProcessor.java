@@ -147,6 +147,9 @@ public final class VerifiedPacketProcessor implements PacketProcessor {
 
                         this.lastMovementPacket = now;
                         break;
+                    /*case CHAT_MESSAGE:
+                        this.processChat(new WrapperPlayClientChatMessage(event).getMessage());
+                        break;*/
                     case CHAT_COMMAND:
                         this.processChat(new WrapperPlayClientChatCommand(event).getCommand());
                         break;
@@ -181,7 +184,6 @@ public final class VerifiedPacketProcessor implements PacketProcessor {
     }
 
     private void processChat(String chat) {
-        //Main.logError("CHAT " + chat);
         switch (chat) {
             case "confirm": {
                 //init the gui
@@ -207,7 +209,7 @@ public final class VerifiedPacketProcessor implements PacketProcessor {
 
     //String cmd = (String) PacketBlocker.getStringFromCommandPacketMethod.invoke(msg);
     private void processCommand(String cmd, PacketReceiveEvent event) {
-        String[] splet = AlixUtils.split(cmd, ' ');
+        String[] splet = cmd.split(" ", -1);
         //again, async cuz of password hashing algorithms
         if (AlixCommandManager.isPasswordChangeCommand(splet[0])) {
             AlixScheduler.async(() -> CommandManager.onPasswordChangeCommand(user, Arrays.copyOfRange(splet, 1, splet.length)));
@@ -217,7 +219,6 @@ public final class VerifiedPacketProcessor implements PacketProcessor {
 
     @Override
     public void onPacketSend(PacketPlaySendEvent event) {
-
 /*        switch (event.getPacketType()) {
             case PLAYER_INFO: {
                 WrapperPlayServerPlayerInfo info = new WrapperPlayServerPlayerInfo(event);
@@ -429,7 +430,7 @@ public final class VerifiedPacketProcessor implements PacketProcessor {
 /*    public void sendOf(String name) {
         Object packet = this.map.get(name);
         if (packet != null)//excluding the self packet send
-            this.channel.writeAndFlush(packet);
+            this.channel.write(packet);
     }*/
 
 /*    public void stop() {

@@ -1,11 +1,11 @@
 package alix.common.utils.multiengine.server;
 
-import org.bukkit.Bukkit;
+import org.bukkit.command.ConsoleCommandSender;
 
-public final class BukkitServer implements AbstractServer {
+public final class BukkitServer implements AbstractServer<ConsoleCommandSender> {
 
     @Override
-    public int getPort() {
-        return Bukkit.getPort();
+    public void sendMessage(ConsoleCommandSender receiver, String message) {
+        receiver.sendMessage(message);
     }
 }

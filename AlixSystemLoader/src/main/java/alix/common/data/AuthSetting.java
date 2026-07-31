@@ -11,6 +11,10 @@ public enum AuthSetting {
     }
 
     public static AuthSetting fromString(String savable) {
-        return values()[Integer.parseInt(savable)];
+        try {
+            return values()[Integer.parseInt(savable)];
+        } catch (NumberFormatException e) {
+            return valueOf(savable);
+        }
     }
 }

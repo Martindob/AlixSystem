@@ -41,6 +41,8 @@ public abstract class LoopList<T> {
 
     public abstract int updateAndGet(IntUnaryOperator operator);
 
+    public abstract T findIncrementIndex(Predicate<T> predicate);
+
     abstract void set0(int index, Object value);
 
     abstract void lazySet(int index, Object value);
@@ -196,6 +198,18 @@ public abstract class LoopList<T> {
         }
 
         @Override
+        public T findIncrementIndex(Predicate<T> predicate) {
+            for (int i = 0; i < this.values.length; i++) {
+                T val = (T) this.values[i];
+                if (predicate.test(val)) {
+                    this.setCurrentIndex0(i);
+                    return val;
+                }
+            }
+            return null;
+        }
+
+        @Override
         void set0(int index, Object value) {
             this.values[index] = value;
         }
@@ -261,6 +275,11 @@ public abstract class LoopList<T> {
         @Override
         public int updateAndGet(IntUnaryOperator operator) {
             return this.currentIndex.updateAndGet(operator);
+        }
+
+        @Override
+        public T findIncrementIndex(Predicate<T> predicate) {
+            return null;
         }
 
         @Override

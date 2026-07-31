@@ -5,17 +5,13 @@ import alix.common.utils.netty.WrapperTransformer;
 import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import io.netty.buffer.ByteBuf;
 import ua.nanit.limbo.protocol.ByteMessage;
-import ua.nanit.limbo.protocol.snapshot.PacketSnapshot;
 import ua.nanit.limbo.protocol.packets.play.PacketOutCommands;
 import ua.nanit.limbo.protocol.registry.Version;
+import ua.nanit.limbo.protocol.snapshot.PacketSnapshot;
 
 import java.util.List;
 
-import static alix.common.utils.config.ConfigProvider.config;
-
 final class LimboCommandImpl implements LimboCommand {
-
-    private static final boolean supportAllChars = config.getBoolean("command-support-all-characters");
 
     //private final ByteBuf encoded;
     private final PacketSnapshot snapshot;
@@ -35,9 +31,9 @@ final class LimboCommandImpl implements LimboCommand {
         ByteBuf encodedNoId;
 
         if (argNames.length == 1)
-            encodedNoId = CommandsWrapperConstructor.constructOneArg(aliases, argNames[0], supportAllChars, WrapperTransformer.DYNAMIC_NO_ID, ver);
+            encodedNoId = CommandsWrapperConstructor.constructOneArg(aliases, argNames[0], WrapperTransformer.DYNAMIC_NO_ID, ver);
         else
-            encodedNoId = CommandsWrapperConstructor.constructTwoArg(aliases, argNames[0], argNames[1], supportAllChars, WrapperTransformer.DYNAMIC_NO_ID, ver);
+            encodedNoId = CommandsWrapperConstructor.constructTwoArg(aliases, argNames[0], argNames[1], WrapperTransformer.DYNAMIC_NO_ID, ver);
 
         msg.writeBytes(encodedNoId, 0, encodedNoId.readableBytes());
         encodedNoId.release();

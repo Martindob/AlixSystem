@@ -1,41 +1,50 @@
 package alix.common.connection.vpn.impl;
 
-import alix.common.connection.vpn.CheckResult;
+import alix.common.connection.vpn.CheckResultHolder;
+import alix.common.connection.vpn.IPInfo;
 import alix.common.connection.vpn.ProxyCheck;
+import alix.common.connection.vpn.ProxyType;
+import alix.common.connection.vpn.utils.SlidingWindowRateLimiter;
+import alix.common.connection.vpn.utils.RateLimiter;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.TimeUnit;
 
 public final class IPAPIImpl implements ProxyCheck {
 
-    private final AtomicLong nextRequestCountReset = new AtomicLong();
-    private final AtomicInteger requests = new AtomicInteger();
+    // 45 req/min
+    private final RateLimiter rateLimiter = new SlidingWindowRateLimiter(45, 1, TimeUnit.MINUTES);
 
     @Override
-    public CheckResult isProxy(String address) {
-        int req;
-        if (this.nextRequestCountReset.get() < System.currentTimeMillis()) {
-            this.requests.set(0);
-            req = 0;
-        } else req = requests.get();
+    public CheckResultHolder isProxy(String address) {
+        if (!rateLimiter.tryAcquire()) return CheckResultHolder.UNAVAILABLE;
 
-        switch (req) {
-            case 0:
-                this.nextRequestCountReset.set(System.currentTimeMillis() + 45000L);
-                break;
-            case 44:
-                return CheckResult.UNAVAILABLE;
-        }
+        JsonElement out = ProxyCheck.getResponse("http://ip-api.com/json/" + address + "?fields=status,country,isp,as,proxy,hosting");
+        if (out == null || !out.isJsonObject()) return CheckResultHolder.UNAVAILABLE;
 
-        this.requests.getAndIncrement();
+        JsonObject obj = out.getAsJsonObject();
+        JsonElement status = obj.get("status");
+        if (status == null || !"success".equals(status.getAsString())) return CheckResultHolder.UNAVAILABLE;
 
-        JsonElement out = ProxyCheck.getResponse("http://ip-api.com/json/" + address + "?fields=proxy");//currently does not include "status"
-        if (out == null) return CheckResult.UNAVAILABLE;
+        boolean isProxyFlag = obj.has("proxy") && obj.get("proxy").getAsBoolean();
+        boolean isHosting = obj.has("hosting") && obj.get("hosting").getAsBoolean();
+        boolean isBad = isProxyFlag || isHosting;
 
-        JsonElement proxy = out.getAsJsonObject().get("proxy");
-        if (proxy == null) return CheckResult.UNAVAILABLE;
+        IPInfo.Builder builder = new IPInfo.Builder(address, "ip-api.com")
+                .proxy(isBad)
+                .isHosting(isHosting)
+                .isVpn(isProxyFlag && !isHosting);
 
-        return proxy.getAsBoolean() ? CheckResult.PROXY : CheckResult.NON_PROXY;
+        if (obj.has("country")) builder.country(obj.get("country").getAsString());
+        if (obj.has("isp")) builder.isp(obj.get("isp").getAsString());
+        if (obj.has("as")) builder.asn(obj.get("as").getAsString());
+
+        if (isHosting) builder.proxyType(ProxyType.DATACENTER);
+        else if (isProxyFlag) builder.proxyType(ProxyType.VPN);
+        else builder.proxyType(ProxyType.NOT_A_PROXY);
+
+        IPInfo info = builder.build();
+        return isBad ? CheckResultHolder.proxy(info) : CheckResultHolder.nonProxy(info);
     }
 }

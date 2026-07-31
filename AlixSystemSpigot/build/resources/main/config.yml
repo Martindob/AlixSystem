@@ -1,9 +1,9 @@
 #------------------------------------------------------------------------------------#
 #             This is the config.yml file for AlixSystem, divided by sections.       #
 #     If you're curious about certain parameters, you can join our discord server    #
-#          at https://discord.gg/bWjmA7s3xV or visit the spigot documentation        #
-#               (although outdated) of this plugin available at                      #
-#    https://www.spigotmc.org/resources/alixsystem.109144/field?field=documentation  #
+#          at https://discord.gg/bWjmA7s3xV or visit the GitHub documentation        #
+#             (although only partially complete) of this plugin available at         #
+#                https://github.com/ShadowOfHeaven-Me/AlixSystem/wiki                #
 #------------------------------------------------------------------------------------#
 
 
@@ -34,7 +34,7 @@ validate-name: true
 #Defines whether a player of an already existing player's nickname, ignoring casing, should be allowed to join
 # true -> Allow 'Marcos' & 'marcos' to coexist
 # false -> Disallow
-allow-case-sensitive-nicknames: true
+allow-case-sensitive-nicknames: false
 
 
 #----------------------------------------------#
@@ -117,7 +117,7 @@ forcefully-disable-auto-login: false
 #Defines how long (in seconds) should be a player allowed to be on the server not logged in (must be greater than zero)
 max-login-time: 75
 #Defines how many attempts does a user have when entering his password (setting it too high could be risky because of password crackers)
-max-login-attempts: 3
+max-login-attempts: 4
 #Defines how many attempts should a player be allowed to have to enter the 2FA code from the app
 max-auth-app-attempts: 3
 #Defines the way the passwords set by the users will be hashed in by default
@@ -269,3 +269,5 @@ auto-save: true
 unsafe-firewall: true
 #Defines whether constant buffer writes should be done in order to achieve maximal performance
 write-const-bufs: true
+#Whether or not user emails should be saved in an encrypted form. You can set this to false in case you need it in raw text
+encrypt-emails: true

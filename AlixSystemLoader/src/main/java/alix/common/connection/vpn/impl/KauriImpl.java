@@ -1,20 +1,63 @@
 package alix.common.connection.vpn.impl;
 
-import alix.common.connection.vpn.CheckResult;
+import alix.common.connection.vpn.CheckResultHolder;
+import alix.common.connection.vpn.IPInfo;
 import alix.common.connection.vpn.ProxyCheck;
+import alix.common.connection.vpn.ProxyType;
+import alix.common.connection.vpn.utils.DynamicMonthlyRateLimiter;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 public final class KauriImpl implements ProxyCheck {
 
+    // 20,000 queries per month
+    private final DynamicMonthlyRateLimiter rateLimiter = new DynamicMonthlyRateLimiter(20_000);
+
     @Override
-    public CheckResult isProxy(String address) {
+    public CheckResultHolder isProxy(String address) {
+        if (!rateLimiter.tryAcquire()) return CheckResultHolder.UNAVAILABLE;
+
         JsonElement out = ProxyCheck.getResponse("https://funkemunky.cc/vpn?ip=" + address);
-        if (out == null) return CheckResult.UNAVAILABLE;
+        if (out == null || !out.isJsonObject()) return CheckResultHolder.UNAVAILABLE;
 
-        JsonElement proxy0 = out.getAsJsonObject().get("proxy");
-        if (proxy0 == null) return CheckResult.UNAVAILABLE;
+        JsonObject obj = out.getAsJsonObject();
 
-        boolean proxy = proxy0.getAsBoolean();
-        return proxy ? CheckResult.PROXY : CheckResult.NON_PROXY;
+        // Sync our local rate limit counter with the definitive API value
+        if (obj.has("queriesLeft") && !obj.get("queriesLeft").isJsonNull()) {
+            rateLimiter.sync(obj.get("queriesLeft").getAsInt());
+        }
+
+        if (!obj.has("proxy")) return CheckResultHolder.UNAVAILABLE;
+
+        boolean isProxy = obj.get("proxy").getAsBoolean();
+        IPInfo.Builder builder = new IPInfo.Builder(address, "Kauri (Funkemunky)")
+                .proxy(isProxy);
+
+        if (obj.has("countryName") && !obj.get("countryName").isJsonNull()) {
+            String country = obj.get("countryName").getAsString();
+            if (!"unknown".equalsIgnoreCase(country)) builder.country(country);
+        }
+
+        if (obj.has("isp") && !obj.get("isp").isJsonNull()) {
+            String isp = obj.get("isp").getAsString();
+            if (!"unknown".equalsIgnoreCase(isp)) builder.isp(isp);
+        } else if (obj.has("organization") && !obj.get("organization").isJsonNull()) {
+            // Fallback to organization if ISP is missing or 'unknown'
+            String org = obj.get("organization").getAsString();
+            if (!"unknown".equalsIgnoreCase(org)) builder.isp(org);
+        }
+
+        if (obj.has("asn") && !obj.get("asn").isJsonNull()) {
+            String asn = obj.get("asn").getAsString();
+            if (!"unknown".equalsIgnoreCase(asn)) {
+                builder.asn(asn.startsWith("AS") ? asn : "AS" + asn);
+            }
+        }
+
+        // Kauri does not currently specify proxy subtypes, so we fall back to generic types
+        builder.proxyType(isProxy ? ProxyType.PROXY : ProxyType.NOT_A_PROXY);
+
+        IPInfo info = builder.build();
+        return isProxy ? CheckResultHolder.proxy(info) : CheckResultHolder.nonProxy(info);
     }
 }

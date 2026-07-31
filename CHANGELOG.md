@@ -1,3 +1,10 @@
-Fix erroneous message
+Issues fix, stable version release
 
-* Fixed non-premium players getting an invalid packet message instead of the actual packet (except the very first person)
+Changes since 3.10.0 (DEV-2)
+
+* Fixed a nasty issue related to partial writes on congested networks
+* 'allow-case-sensitive-nicknames' is now false by default
+* Optimized v4 ip look-ups
+* Properly accounted for legacy ping
+* Fixed improper firewalls
+

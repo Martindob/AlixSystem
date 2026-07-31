@@ -10,7 +10,6 @@ public final class Entities {
 
     public static final PacketSnapshot SAME_ID = PacketSnapshot.of(PacketPlayOutSpawnEntity.of(
                     PacketSnapshots.PLAYER_ENTITY_ID, PacketSnapshots.PLAYER_UUID,
-                    EntityTypes.ITEM_FRAME, Vector3d.zero()
+                        EntityTypes.ITEM_FRAME, Vector3d.zero()
             ));
-
 }

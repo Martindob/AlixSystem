@@ -1,5 +1,6 @@
 package shadow.systems.commands.tab;
 
+import alix.common.antibot.firewall.FireWallManager;
 import alix.common.data.LoginType;
 import alix.common.data.PersistentUserData;
 import alix.common.data.file.UserFileManager;
@@ -10,6 +11,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,9 +30,9 @@ public final class CommandTabCompleterAS implements TabCompleter {
                 return cmds;
             case 2:
                 switch (args[0].toLowerCase()) {
-                        /*List<String> list = new ArrayList<>(Bukkit.getOnlinePlayers().size());
-                        for (Player p : Bukkit.getOnlinePlayers()) list.add(p.getName());
-                        return list;*/
+                    case "ufw": {
+                        return FireWallManager.dynamicBlockedSet().stream().map(InetAddress::getHostAddress).toList();
+                    }
                     case "migrate": {
                         return Arrays.stream(MigrateType.values()).map(Enum::name).toList();
                     }
@@ -52,16 +54,17 @@ public final class CommandTabCompleterAS implements TabCompleter {
                 break;
             case 3:
                 switch (args[0].toLowerCase()) {
-                        /*List<String> list = new ArrayList<>(Bukkit.getOnlinePlayers().size());
-                        for (Player p : Bukkit.getOnlinePlayers()) list.add(p.getName());
-                        return list;*/
+                    case "ufw": {
+                        String arg3 = args[2];
+                        return FireWallManager.dynamicBlockedSet().stream().map(InetAddress::getHostAddress).filter(n -> n.startsWith(arg3)).toList();
+                    }
                     case "migrate": {
                         String arg3 = args[2].toUpperCase();
                         return Arrays.stream(MigrateType.values()).map(Enum::name).filter(n -> n.startsWith(arg3)).toList();
                     }
                     case "cp":
                     case "changepassword": {
-                        return List.of(); //Arrays.stream(LoginType.values()).map(Enum::name).toList();
+                        return List.of();
                     }
                     case "fs":
                     case "forcestatus": {

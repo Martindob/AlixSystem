@@ -1,5 +1,7 @@
 package alix.common.utils.netty.safety;
 
+import ua.nanit.limbo.NanoLimbo;
+
 public final class NettySafetyException extends RuntimeException {
 
     NettySafetyException(String message) {
@@ -8,12 +10,12 @@ public final class NettySafetyException extends RuntimeException {
 
     @Override
     public Throwable fillInStackTrace() {//traceless
-        return this;
+        return NanoLimbo.broadcastInvalidPacketFireWalls ? super.fillInStackTrace() : this;
     }
 
     @Override
     public Throwable getCause() {
-        return null;
+        return NanoLimbo.broadcastInvalidPacketFireWalls ? super.getCause() : null;
     }
 
     static NettySafetyException of(String reason) {

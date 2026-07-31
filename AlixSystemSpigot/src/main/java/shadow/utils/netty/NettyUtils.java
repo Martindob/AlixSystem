@@ -169,21 +169,21 @@ public final class NettyUtils {
 
     //The following methods prevent StacklessClosedChannelException
 
-/*    public static void writeAndFlush(Channel channel, Object msg, ChannelFutureListener listener) {
+/*    public static void write(Channel channel, Object msg, ChannelFutureListener listener) {
         channel.eventLoop().execute(() -> {
-            if (channel.isOpen()) channel.writeAndFlush(msg).addListener(listener);
+            if (channel.isOpen()) channel.write(msg).addListener(listener);
         });
     }
 
-    public static void writeAndFlush(ChannelHandlerContext ctx, Object msg) {
+    public static void write(ChannelHandlerContext ctx, Object msg) {
         ctx.channel().eventLoop().execute(() -> {
-            if (ctx.channel().isOpen()) ctx.writeAndFlush(msg);
+            if (ctx.channel().isOpen()) ctx.write(msg);
         });
     }
 
-    public static void writeAndFlush(Channel channel, Object msg) {
+    public static void write(Channel channel, Object msg) {
         channel.eventLoop().execute(() -> {
-            if (channel.isOpen()) channel.writeAndFlush(msg);
+            if (channel.isOpen()) channel.write(msg);
         });
     }
 

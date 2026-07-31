@@ -12,9 +12,60 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static alix.common.utils.config.ConfigProvider.config;
+
 public final class CommandsWrapperConstructor {
 
-    public static ByteBuf constructOneArg(List<String> commands, String argName, boolean supportAllChars, WrapperTransformer transformer, ServerVersion version) {
+    static final boolean supportAllChars = config.getBoolean("command-support-all-characters");
+
+    public static ByteBuf constructMultipleArgs(List<CustomCommand> commands, WrapperTransformer transformer, ServerVersion version) {
+        List<Node> list = new ArrayList<>();
+        List<Integer> rootIndices = new ArrayList<>();
+
+        // 1. Add a placeholder for the ROOT node at index 0.
+        // We will replace it at the end once we know all the literal indices.
+        list.add(null);
+
+        for (CustomCommand cmd : commands) {
+            // The index of the argument node will be whatever the current list size is
+            int argIndex = list.size();
+
+            list.add(newNode0(
+                    NodeType.ARGUMENT,
+                    cmd.argName(),
+                    Collections.emptyList(),
+                    Parsers.BRIGADIER_STRING,
+                    supportAllChars ? BrigadierString.GREEDY_PHRASE : BrigadierString.SINGLE_WORD,
+                    NodeFlag.IS_EXECUTABLE
+            ));
+
+            // Add all aliases (literals) and point them to the argument node
+            for (String alias : cmd.aliases()) {
+                int literalIndex = list.size();
+                list.add(newNode0(
+                        NodeType.LITERAL,
+                        alias,
+                        Collections.singletonList(argIndex),
+                        null,
+                        null,
+                        NodeFlag.IS_EXECUTABLE
+                ));
+
+                // Add this literal to the Root's children
+                rootIndices.add(literalIndex);
+            }
+        }
+
+        // 2. Now that we have all root indices, overwrite index 0 with the actual Root node
+        list.set(0, newNode0(NodeType.ROOT, null, rootIndices, null, null));
+
+        var wrapper = new WrapperPlayServerDeclareCommands(list, 0);
+        WrapperUtils.setVersion(wrapper, version);
+
+        return transformer.apply(wrapper);
+    }
+
+    public static ByteBuf constructOneArg(List<String> commands, String argName, WrapperTransformer transformer, ServerVersion version) {
         List<Node> list = new ArrayList<>();
         List<Integer> indices = new ArrayList<>();
 
@@ -39,7 +90,7 @@ public final class CommandsWrapperConstructor {
         return transformer.apply(wrapper);
     }
 
-    public static ByteBuf constructTwoArg(List<String> commands, String arg1Name, String arg2Name, boolean supportAllChars, WrapperTransformer transformer, ServerVersion version) {
+    public static ByteBuf constructTwoArg(List<String> commands, String arg1Name, String arg2Name, WrapperTransformer transformer, ServerVersion version) {
         List<Node> list = new ArrayList<>();
         List<Integer> indices = new ArrayList<>(commands.size());
 

@@ -18,8 +18,10 @@ import static ua.nanit.limbo.connection.login.gui.LimboAuthBuilder.ofSkull;
 public abstract class AbstractAnvilBuilder<T extends AbstractAnvilBuilder> {
 
     public static final ItemStack GO_BACK_ITEM = ofSkull("&6Go back", SkullTextures.GO_BACK);
+    public static final ItemStack RECOVER_ITEM = of(ItemTypes.PAPER, alix.common.messages.Messages.get("gui-recover-account"));
+    public static final int RECOVER_SLOT = 8;
     private static final String USER_INPUT_STR = "";
-    private static final PacketSnapshot itemsValidWithCancelPacket, itemsValidWithLeavePacket, itemsInvalidWithLeavePacket, itemsInvalidWithCancelPacket;
+    private static final ItemStack[] itemsValidWithCancel, itemsValidWithLeave, itemsInvalidWithCancel, itemsInvalidWithLeave;
 
     static {
         ItemStack USER_INPUT = of(ItemTypes.PAPER, USER_INPUT_STR);
@@ -28,16 +30,21 @@ public abstract class AbstractAnvilBuilder<T extends AbstractAnvilBuilder> {
         ItemStack INVALID_PASSWORD = of(ItemTypes.RED_WOOL, "&cInvalid password");
         ItemStack CANCEL = GO_BACK_ITEM;
 
-        ItemStack[] itemsValidWithCancel = {USER_INPUT, CANCEL, CONFIRM_BUTTON};
-        ItemStack[] itemsValidWithLeave = {USER_INPUT, LEAVE_BUTTON, CONFIRM_BUTTON};
+        itemsValidWithCancel = new ItemStack[]{USER_INPUT, CANCEL, CONFIRM_BUTTON};
+        itemsValidWithLeave = new ItemStack[]{USER_INPUT, LEAVE_BUTTON, CONFIRM_BUTTON};
 
-        ItemStack[] itemsInvalidWithCancel = {USER_INPUT, CANCEL, INVALID_PASSWORD};
-        ItemStack[] itemsInvalidWithLeave = {USER_INPUT, LEAVE_BUTTON, INVALID_PASSWORD};
+        itemsInvalidWithCancel = new ItemStack[]{USER_INPUT, CANCEL, INVALID_PASSWORD};
+        itemsInvalidWithLeave = new ItemStack[]{USER_INPUT, LEAVE_BUTTON, INVALID_PASSWORD};
+    }
 
-        itemsValidWithCancelPacket = new PacketPlayOutInventoryItems(itemsValidWithCancel).toSnapshot();
-        itemsValidWithLeavePacket = new PacketPlayOutInventoryItems(itemsValidWithLeave).toSnapshot();
-        itemsInvalidWithLeavePacket = new PacketPlayOutInventoryItems(itemsInvalidWithLeave).toSnapshot();
-        itemsInvalidWithCancelPacket = new PacketPlayOutInventoryItems(itemsInvalidWithCancel).toSnapshot();
+    private static ItemStack[] create39Items(ItemStack[] top3, boolean includeRecover) {
+        ItemStack[] items = new ItemStack[includeRecover ? 39 : 3];
+        System.arraycopy(top3, 0, items, 0, 3);
+        if (includeRecover) {
+            for (int i = 3; i < 39; i++) items[i] = ItemStack.EMPTY;
+            items[RECOVER_SLOT] = RECOVER_ITEM;
+        }
+        return items;
     }
 
     private final Channel channel;
@@ -49,13 +56,21 @@ public abstract class AbstractAnvilBuilder<T extends AbstractAnvilBuilder> {
     private final CipherHandler cipher;
 
     protected AbstractAnvilBuilder(Channel channel, Version version, AnvilBuilderGoal goal, Consumer<T> flush) {
+        this(channel, version, goal, flush, false);
+    }
+
+    protected AbstractAnvilBuilder(Channel channel, Version version, AnvilBuilderGoal goal, Consumer<T> flush, boolean hasRecoveryButton) {
         this.channel = channel;
         this.version = version;
         this.indicateInvalid = goal.indicateInvalid();
         this.isPasswordValid = !indicateInvalid;//it's empty right now, so invalid if we validate that
         this.goal = goal;
-        this.validItems = goal.isUserVerified() ? itemsValidWithCancelPacket : itemsValidWithLeavePacket;
-        this.invalidItems = goal.isUserVerified() ? itemsInvalidWithCancelPacket : itemsInvalidWithLeavePacket;
+
+        ItemStack[] baseValid = goal.isUserVerified() ? itemsValidWithCancel : itemsValidWithLeave;
+        ItemStack[] baseInvalid = goal.isUserVerified() ? itemsInvalidWithCancel : itemsInvalidWithLeave;
+
+        this.validItems = new PacketPlayOutInventoryItems(create39Items(baseValid, hasRecoveryButton)).toSnapshot();
+        this.invalidItems = new PacketPlayOutInventoryItems(create39Items(baseInvalid, hasRecoveryButton)).toSnapshot();
         this.openInv = goal.getInvOpen();
         this.flush = flush;
         this.cipher = CipherHandler.encryptionFor(this.channel);

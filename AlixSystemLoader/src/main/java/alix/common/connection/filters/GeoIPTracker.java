@@ -2,6 +2,7 @@ package alix.common.connection.filters;
 
 import alix.common.data.file.AllowListFileManager;
 import alix.common.messages.Messages;
+import alix.common.utils.collections.fastutil.InetAddressMap;
 import alix.common.utils.config.ConfigParams;
 
 import java.net.InetAddress;
@@ -14,7 +15,7 @@ public final class GeoIPTracker implements ConnectionFilter {
     private static final boolean initialized = ConfigParams.maximumTotalAccounts > 0;
     public static final String maxAccountsReached = Messages.get("account-limit-reached", ConfigParams.maximumTotalAccounts);
 
-    private static final Map<InetAddress, Integer> EXISTING_ACCOUNTS = new ConcurrentHashMap<>(1 << 11);//2048
+    private static final InetAddressMap<Integer> EXISTING_ACCOUNTS = new InetAddressMap<>(1 << 11, 1 << 5);//2048, 32
     private static final Map<InetAddress, LongAdder> TEMPORARY_ACCOUNTS = new ConcurrentHashMap<>(1 << 8);
 
     public static boolean disallowJoin(InetAddress ip, String name) {//counts both: existing accounts and unregistered players currently on the server with that ip
@@ -34,6 +35,10 @@ public final class GeoIPTracker implements ConnectionFilter {
 
     public static boolean isMapped(InetAddress ip) {
         return EXISTING_ACCOUNTS.containsKey(ip);
+    }
+
+    public static boolean isv4Mapped(int val) {
+        return EXISTING_ACCOUNTS.containsV4(val);
     }
 
     public static int existingAccounts(InetAddress ip) {

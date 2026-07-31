@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2020 Nan1t
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package ua.nanit.limbo.connection;
 
 import alix.common.connection.profiler.ConnectionStage;
@@ -72,6 +55,9 @@ public final class ClientConnection {
     //Login/Captcha
     private VerifyState verifyState;
     public boolean sentLogin;
+
+    //Motd cache
+    public boolean replyingWithCachedMotd;
 
     //Transfer
     private PacketHandshake handshakePacket;
@@ -173,7 +159,7 @@ public final class ClientConnection {
     @OptimizationCandidate
     private void resendRecoded(PacketIn loginStartOrStatusReq) {
         //release what we originally received - we won't be resending that
-        this.frameDecoder.releaseCollected();
+        //this.frameDecoder.releaseCollected();
 
         //re-encode received packets
         CompressionHandler compression = null;//compression is always null at this point in time //this.duplexHandler.compressionHandler();
@@ -566,7 +552,12 @@ public final class ClientConnection {
     }
 
     public void close() {
-        this.channel.close(this.channel.voidPromise());
+        //this.channel.close(this.channel.voidPromise());
+        UnsafeCloseFuture.unsafeClose(this.channel);
+    }
+
+    public void write(ByteBuf buf) {
+        PacketUtils.unsafeWrite(this.channel, buf);
     }
 
     /*public void setAddress(String host) {
