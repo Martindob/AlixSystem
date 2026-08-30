@@ -25,8 +25,13 @@ public final class MessagesFile extends AlixFileManager {
             String[] a = line.split(separator + " ", 2);
             if (a.length == 1) a = line.split(separator + "", 2);
 
-            String message = AlixFormatter.translateColors(a[1]); //outdated explanation - AlixFormatter instead of AlixUtils because of class initialization issues
-            map.put(a[0], removeFrontSpace(message));
+            String value = removeFrontSpace(a[1]);
+            //strip a single pair of surrounding double-quotes, allowing message files to use a YAML-like quoted-string syntax (e.g. key: "value")
+            if (value.length() >= 2 && value.charAt(0) == '"' && value.charAt(value.length() - 1) == '"')
+                value = value.substring(1, value.length() - 1);
+
+            String message = AlixFormatter.translateColors(value); //outdated explanation - AlixFormatter instead of AlixUtils because of class initialization issues
+            map.put(a[0], message);
 
         } catch (Exception e) {
             throw new RuntimeException("An error was caught whilst initializing messages on line: " + line, e);

@@ -9,6 +9,8 @@ public final class EmailConfig {
     private final AlixYamlConfig config;
     public final String host, username, password, email, sender;
     public final int port;
+    //file name of a custom HTML verification-email template, relative to the plugin's "email-templates" folder; empty means the built-in default template is used
+    public final String customVerifyEmailTemplate;
 
     EmailConfig() {
         var file = AlixFileManager.getOrCreatePluginFile("email-config.yml", AlixFileManager.FileType.CONFIG);
@@ -19,6 +21,7 @@ public final class EmailConfig {
         this.email = config.getString("email");
         this.sender = config.getString("sender");
         this.port = config.getInt("port");
+        this.customVerifyEmailTemplate = config.getString("custom-verify-email-template", "");
     }
 
     public static void init() {

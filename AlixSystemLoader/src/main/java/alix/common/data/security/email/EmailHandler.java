@@ -25,9 +25,11 @@ import javax.activation.CommandMap;
 import javax.activation.MailcapCommandMap;
 import javax.mail.Session;
 import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class EmailHandler {
@@ -36,8 +38,12 @@ public final class EmailHandler {
     private static final Map<Object, EmailVerificationSession> VERIFY_CODES = AlixCache.newBuilder().maximumSize(512).<Object, EmailVerificationSession>build().asMap();
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
+    public static boolean isValidEmail(String email) {
+        return email != null && EMAIL_PATTERN.matcher(email).matches();
+    }
+
     public static <T> void sendVerifyMail(T caller, String email, boolean console, BiConsumer<T, String> sendMessage) {
-        if (!EMAIL_PATTERN.matcher(email).matches()) {
+        if (!isValidEmail(email)) {
             sendMessage.accept(caller, Messages.get("verify-mail.invalid-email"));
             return;
         }
@@ -46,14 +52,28 @@ public final class EmailHandler {
         VERIFY_CODES.put(caller, new EmailVerificationSession(verifyCode, email));
 
         sendMessage.accept(caller, Messages.get("verify-mail.requesting-send"));
-        sendEmail(email, Messages.get("verify-mail.email-subject"), Messages.get("verify-mail.email-body",
-                console ? "/as verifyemail " + verifyCode : "/account verifyemail " + verifyCode)).whenComplete((v, ex) -> {
+        sendEmail(email, Messages.get("verify-mail.email-subject"), buildVerifyEmailBody(verifyCode, console)).whenComplete((v, ex) -> {
             if (ex != null) {
                 sendMessage.accept(caller, Messages.get("verify-mail.send-failed"));
                 return;
             }
             sendMessage.accept(caller, Messages.get("verify-mail.sent-successfully"));
         });
+    }
+
+    //builds the HTML body of the verification email, using a custom operator-provided template (if configured) instead of the built-in default
+    private static String buildVerifyEmailBody(String verifyCode, boolean console) {
+        String command = console ? "/as verifyemail " + verifyCode : "/account verifyemail " + verifyCode;
+        String customTemplate = EmailConfig.INSTANCE.customVerifyEmailTemplate;
+
+        if (customTemplate != null && !customTemplate.isBlank()) {
+            var loaded = EmailTemplateLoader.load(customTemplate);
+            if (loaded.isPresent())
+                return loaded.get().replace("{code}", verifyCode).replace("{command}", command);
+            //falls through to the default template below if the custom one could not be loaded
+        }
+
+        return Messages.get("verify-mail.email-body", command);
     }
 
     public static <T> void sendRecoveryMail(T caller, String email, BiConsumer<T, String> sendMessage) {
@@ -165,11 +185,52 @@ public final class EmailHandler {
             }
         }
 
+        content = embedTemplateImages(mail, content);
         mail.setHtmlMsg(content);
 
         Thread.currentThread().setContextClassLoader(Session.class.getClassLoader());
 
         mail.send();
+    }
+
+    //matches 'cid:<filename>' references (e.g. <img src="cid:logo.png">), the way a custom HTML email template embeds its own images
+    private static final Pattern CID_IMAGE_PATTERN = Pattern.compile("cid:([\\w.\\-]+)");
+
+    //Embeds every image referenced via 'cid:<filename>' in the email body, sourced from this plugin's "email-templates/images"
+    //folder, so a custom HTML template (see EmailTemplateLoader/EmailConfig#customVerifyEmailTemplate) can include a logo or any
+    //other artwork, on top of ordinary remotely-hosted <img src="https://..."> images which already work without any of this.
+    // Missing/unreadable files are left as broken references (non-fatal), with a warning logged.
+    private static String embedTemplateImages(HtmlEmail mail, String content) {
+        Matcher matcher = CID_IMAGE_PATTERN.matcher(content);
+        Map<String, String> embeddedCids = new HashMap<>(); //file name -> generated Content-ID, avoids embedding the same file twice
+        StringBuilder result = new StringBuilder();
+        int lastEnd = 0;
+
+        while (matcher.find()) {
+            String fileName = matcher.group(1);
+            if (fileName.equals(".") || fileName.contains("..")) continue; //defensive - not a real filename, leave untouched
+
+            String cid = embeddedCids.get(fileName);
+            if (cid == null) {
+                var imageFile = EmailTemplateLoader.loadImageFile(fileName);
+                if (imageFile.isEmpty()) {
+                    AlixCommonMain.logWarning("Custom email template references image 'cid:" + fileName + "', but '" + fileName + "' was not found in the 'email-templates/images' folder!");
+                    continue;
+                }
+                try {
+                    cid = mail.embed(imageFile.get(), fileName);
+                    embeddedCids.put(fileName, cid);
+                } catch (EmailException e) {
+                    AlixCommonMain.logWarning("Could not embed image '" + fileName + "': " + e.getMessage());
+                    continue;
+                }
+            }
+
+            result.append(content, lastEnd, matcher.start()).append("cid:").append(cid);
+            lastEnd = matcher.end();
+        }
+        result.append(content, lastEnd, content.length());
+        return result.toString();
     }
 
     static {

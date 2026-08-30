@@ -63,6 +63,16 @@ require-register-from-all: false
 #Parameter 'true' would result in the format /register <password> <password>
 #Parameter 'false' would result in the format /register <password>
 require-password-repeat-in-register: false
+#Defines whether the registering user should have to additionally provide an email address whilst registering (only applies to 'password-type: command')
+#Parameter 'true' would result in the format /register <password> <email> (or /register <password> <password> <email> if the repeat option above is also enabled)
+#Parameter 'false' would result in the regular /register <password> format
+#Note: this only saves the email onto the account - it does NOT automatically send/require a verification email; players can verify it afterwards via /account sendverifyemail <email>
+require-email-in-register: false
+#Defines whether registering users must first accept a set of Terms & Conditions (e.g. for GDPR / personal data collection compliance) before they're allowed to register (only applies to 'password-type: command')
+#When enabled, players will be shown the link configured below and asked to type '/terms accept' or '/terms decline'. Declining results in a kick.
+require-terms-acceptance: false
+#The URL of your Terms & Conditions / privacy policy page, shown to players when 'require-terms-acceptance' is enabled above
+terms-url: "https://example.com/terms"
 #Defines whether all characters (so including non-english chars) should be shown as valid during verification command typing, either during login or register.
 #If set to false, only english characters will be seen as valid by the verifying user. Any other character range will be shown in red as invalid. However, when
 # password repeat in /register is enabled, the second password argument will differ in color, making it more distinguishable.
@@ -125,6 +135,16 @@ after-auto-register-commands:
 after-auto-login-commands:
 #Works exactly like the parameters above but invoked on a premium register/login
 after-any-premium-join-commands:
+
+
+#------------------------------------------------#
+#                    LANGUAGE                    #
+#------------------------------------------------#
+
+#Config used to select the language of the messages sent to players
+#Defines the language of the messages file to load, from the "langs" folder found next to this config
+#Available: en (English), cs (Czech/Čeština)
+language: en
 
 
 #------------------------------------------------#

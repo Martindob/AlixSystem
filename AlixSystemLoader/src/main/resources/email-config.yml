@@ -33,3 +33,20 @@ port: 587
 max-email-attempts: 5
 # Defines how many attempts does the user get when entering the recovery code, before being kicked out
 max-code-attempts: 3
+
+
+#------------------------------------------------#
+#            VERIFICATION EMAIL HTML             #
+#------------------------------------------------#
+
+
+# Defines the file name of a custom HTML template to use for the verification email sent to players (found in this plugin's "email-templates" folder, created automatically).
+# Leave empty to use the default, built-in plain-text template.
+# Within the template file, you may use the following placeholders, which will be replaced automatically:
+#  {code} - the 6-digit verification code
+#  {command} - the full command the player needs to run to verify (e.g. /account verifyemail 123456)
+# Images (e.g. a logo) can be included in two ways:
+#  - a remotely-hosted image: just use a normal <img src="https://your-site.com/logo.png"> tag, no extra steps needed
+#  - a locally embedded image: place the image file in this plugin's "email-templates/images" folder (created automatically),
+#    then reference it as <img src="cid:yourimage.png"> (using the exact file name) - it will be attached to the email directly
+custom-verify-email-template: ""

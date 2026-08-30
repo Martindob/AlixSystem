@@ -5,6 +5,7 @@ import alix.common.antibot.epoll.Telemetry;
 import alix.common.antibot.epoll.TelemetryProfiler;
 import alix.common.antibot.epoll.TelemetryProfilerImpl;
 import alix.common.antibot.firewall.FireWallManager;
+import alix.common.commands.file.CommandsFileManager;
 import alix.common.connection.filters.GeoIPTracker;
 import alix.common.connection.profiler.LimboJoinProfiler;
 import alix.common.data.LoginType;
@@ -539,27 +540,63 @@ public final class AlixSystemCommand {
 
         // Fallback execution (when no subcommand is provided)
         root.executes(context -> {
-            CommandSource sender = context.getSource();
-            sendMessage(sender, "");
-            sendMessage(sender, "&c/as user <player> &7- Returns information about the given player.");
-            sendMessage(sender, "&c/as panicmode [on/off] &7- Manually enables/disables Panic-Mode (only already-registered IPs can connect).");
-            sendMessage(sender, "&c/as save_all_local_to_db &7- Saves all locally-stored data into an externally-defined database (if any).");
-            sendMessage(sender, "&c/as bl/bypasslimit <name> &7- Adds the specified name to the account limit bypass list. " +
-                                "Such accounts are not restricted by the account limiter, no matter the config 'max-total-accounts' parameter.");
-            sendMessage(sender, "&c/as bl-r/bypasslimit-remove <name> &7- Removes the specified name from the account limit bypass list.");
-            sendMessage(sender, "&c/as rp/resetpassword <player> &7- Resets the player's password.");
-            sendMessage(sender, "&c/as rp/resetpassword <player> [login type] &7- Resets the player's password and changes their login type. Available login types: COMMAND, PIN & ANVIL.");
-            sendMessage(sender, "&c/as cp/changepassword <player> <new password> [login type] &7- Sets the player's password to the new one specified, and optionally changes their login type.");
-            sendMessage(sender, "&c/as frd/fullyremovedata <player> &7- Fully removes all account data of the specified player. The data cannot be restored after this operation.");
-            sendMessage(sender, "&c/as rs/resetstatus <player> &7- Resets the player's premium status. Mainly aimed to forgive cracked players who used /premium");
-            sendMessage(sender, "&c/as fs/forcestatus <player> <status> &7- Forcefully sets the player's premium status (if can safely be done)");
-            sendMessage(sender, "&c/as ufw <ip> &7- Removes the given ip from the Firewall Database, if possible.");
-            sendMessage(sender, "");
+            sendAdminCommandsList(context.getSource());
             return SINGLE_SUCCESS;
         });
 
-        // Finally, register the command
-        commandManager.register(new BrigadierCommand(root));
+        // Subcommand: lists every command (both admin and player-facing) along with a short description of what it does
+        root.then(BrigadierCommand.literalArgumentBuilder("commands")
+                .executes(context -> {
+                    CommandSource sender = context.getSource();
+                    sendAdminCommandsList(sender);
+                    sendPlayerCommandsList(sender);
+                    return SINGLE_SUCCESS;
+                })
+        );
+
+        // Finally, register the command (using the aliases configured in commands.txt, e.g. "alix")
+        commandManager.register(
+                commandManager.metaBuilder("as")
+                        .aliases(CommandsFileManager.getAliases("alixsystem"))
+                        .plugin(Main.PLUGIN)
+                        .build(),
+                new BrigadierCommand(root)
+        );
+    }
+
+    // Lists every admin ("/as ...") subcommand along with a short description of what it does
+    private static void sendAdminCommandsList(CommandSource sender) {
+        sendMessage(sender, "");
+        sendMessage(sender, "&c/as user <player> &7- Returns information about the given player.");
+        sendMessage(sender, "&c/as panicmode [on/off] &7- Manually enables/disables Panic-Mode (only already-registered IPs can connect).");
+        sendMessage(sender, "&c/as save_all_local_to_db &7- Saves all locally-stored data into an externally-defined database (if any).");
+        sendMessage(sender, "&c/as bl/bypasslimit <name> &7- Adds the specified name to the account limit bypass list. " +
+                            "Such accounts are not restricted by the account limiter, no matter the config 'max-total-accounts' parameter.");
+        sendMessage(sender, "&c/as bl-r/bypasslimit-remove <name> &7- Removes the specified name from the account limit bypass list.");
+        sendMessage(sender, "&c/as rp/resetpassword <player> &7- Resets the player's password.");
+        sendMessage(sender, "&c/as rp/resetpassword <player> [login type] &7- Resets the player's password and changes their login type. Available login types: COMMAND, PIN & ANVIL.");
+        sendMessage(sender, "&c/as cp/changepassword <player> <new password> [login type] &7- Sets the player's password to the new one specified, and optionally changes their login type.");
+        sendMessage(sender, "&c/as frd/fullyremovedata <player> &7- Fully removes all account data of the specified player. The data cannot be restored after this operation.");
+        sendMessage(sender, "&c/as rs/resetstatus <player> &7- Resets the player's premium status. Mainly aimed to forgive cracked players who used /premium");
+        sendMessage(sender, "&c/as fs/forcestatus <player> <status> &7- Forcefully sets the player's premium status (if can safely be done)");
+        sendMessage(sender, "&c/as ufw <ip> &7- Removes the given ip from the Firewall Database, if possible.");
+        sendMessage(sender, "&c/as commands &7- Lists all available commands, admin and player-facing alike.");
+        sendMessage(sender, "");
+    }
+
+    // Lists every player-facing command along with a short description of what it does
+    private static void sendPlayerCommandsList(CommandSource sender) {
+        sendMessage(sender, "&e&lPlayer commands:");
+        sendMessage(sender, "&c/register <password> &7- Registers a new account (format may differ depending on the server's configuration, e.g. requiring an email or a repeated password).");
+        sendMessage(sender, "&c/login <password> &7- Logs into an existing account.");
+        sendMessage(sender, "&c/recovery <email> &7- Recovers account access via a registered recovery email, while unregistered.");
+        sendMessage(sender, "&c/terms accept|decline &7- Accepts or declines the Terms & Conditions during registration (only used if enabled in the server's configuration).");
+        sendMessage(sender, "&c/account &7- Opens the account settings menu (email recovery, login settings, passwords, 2FA).");
+        sendMessage(sender, "&c/account sendverifyemail <email> &7- Sends a verification code to the given email address.");
+        sendMessage(sender, "&c/account verifyemail <code> &7- Verifies your email address using the code sent to it.");
+        sendMessage(sender, "&c/changepassword <new password> &7- Changes your account's password.");
+        sendMessage(sender, "&c/premium &7- Attempts to register your account as premium.");
+        sendMessage(sender, "");
     }
 
     // Helper method to add the same subcommand under multiple aliases

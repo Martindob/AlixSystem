@@ -55,14 +55,31 @@ import static ua.nanit.limbo.protocol.snapshot.PacketSnapshots.REGISTER_TITLE;
 public final class LoginState implements VerifyState {
 
     public static final boolean requirePasswordRepeatInRegister = config.getBoolean("require-password-repeat-in-register");
+    //Whether registering players must additionally provide an email address, in the format /register <password> <email> (see the config for combining this with the password-repeat option above)
+    public static final boolean requireEmailInRegister = config.getBoolean("require-email-in-register");
+    //Whether registering players must first accept a set of Terms & Conditions (e.g. for GDPR/personal-data-collection compliance) before they're allowed to register
+    public static final boolean requireTermsAcceptance = config.getBoolean("require-terms-acceptance");
+    //The URL shown to players pointing at the Terms & Conditions they must accept, when the option above is enabled
+    public static final String termsUrl = config.getString("terms-url", "");
+
     private static final PacketSnapshot
-            REGISTER = requirePasswordRepeatInRegister
-            ? createLimboCommand("register", Messages.get("commands-register-password-arg"), Messages.get("commands-register-password-second-arg"))
+            REGISTER = (requirePasswordRepeatInRegister || requireEmailInRegister)
+            ? createLimboCommand("register", Messages.get("commands-register-password-arg"), registerSecondArgLabel())
             : createLimboCommand("register", Messages.get("commands-register-password-arg")),
             LOGIN = createLimboCommand("login", Messages.get("commands-login-password-arg")),
             LOGIN_AND_RECOVERY = createMultiCommand(
                     CustomCommand.of("recovery", Messages.get("commands-recovery-email-arg")),
                     CustomCommand.of("login", Messages.get("commands-login-password-arg")));
+
+    //Best-effort label for the second argument of the /register command hint shown to the client (the underlying hint packet only supports up to 2 named arguments,
+    // so when both the password-repeat and email options are enabled at once, a single combined label is shown; the exact expected format is still explained via the format-register-email message)
+    private static String registerSecondArgLabel() {
+        if (requirePasswordRepeatInRegister && requireEmailInRegister)
+            return Messages.get("commands-register-password-second-arg") + " / " + Messages.get("commands-register-email-arg");
+        return requirePasswordRepeatInRegister
+                ? Messages.get("commands-register-password-second-arg")
+                : Messages.get("commands-register-email-arg");
+    }
 
     private static PacketSnapshot createMultiCommand(CustomCommand... commands) {
         return LimboCommand.constructMultiCommand(Arrays.asList(commands)).getPacketSnapshot();
@@ -86,6 +103,8 @@ public final class LoginState implements VerifyState {
     public PersistentUserData data;
     public boolean isRegistered;
     public int loginAttempts;
+    //Whether this (still unregistered) connection has accepted the Terms & Conditions, when 'require-terms-acceptance' is enabled
+    private boolean termsAccepted;
 
     public LoginState(ClientConnection connection) {
         this.connection = connection;
@@ -346,6 +365,10 @@ public final class LoginState implements VerifyState {
         //this.write(PacketSnapshots.PACKET_PLAY_PLUGIN_MESSAGE);
 
         //Log.error("LOGIN SENT: " + this.gui + " NAMES: " + this.connection.getChannel().pipeline().names());
+
+        //prompt unregistered command-type users to accept the Terms & Conditions before they're allowed to register
+        if (!this.isRegistered && requireTermsAcceptance && !this.termsAccepted && this.gui == null)
+            this.sendTermsPrompt();
     }
 
     public void handleCommand(String rawCmd) {
@@ -360,8 +383,52 @@ public final class LoginState implements VerifyState {
             return;
         }
 
-        if (this.isRegistered) this.handleLoginCommand(args);
-        else this.handleRegisterCommand(args);
+        if (this.isRegistered) {
+            this.handleLoginCommand(args);
+            return;
+        }
+
+        if (cmdName.equals("terms")) {
+            this.handleTermsCommand(args);
+            return;
+        }
+
+        if (requireTermsAcceptance && !this.termsAccepted) {
+            this.sendTermsPrompt();
+            return;
+        }
+
+        this.handleRegisterCommand(args);
+    }
+
+    //Sends the Terms & Conditions prompt (explanation + link + instructions) to an unregistered player
+    private void sendTermsPrompt() {
+        this.writeMessage(Messages.getWithPrefix("terms-required-explanation"));
+        this.writeMessage(Messages.getWithPrefix("terms-required-link", termsUrl));
+        this.sendMessage(Messages.getWithPrefix("terms-required-prompt"));
+    }
+
+    //Handles the pre-login '/terms accept' and '/terms decline' commands, used to gate registration behind Terms & Conditions acceptance
+    private void handleTermsCommand(String[] args) {
+        if (args.length != 1) {
+            this.sendMessage(Messages.getWithPrefix("terms-invalid-input"));
+            return;
+        }
+
+        String choice = args[0].toLowerCase();
+
+        if (choice.equals("accept")) {
+            this.termsAccepted = true;
+            this.duplexHandler.writeAndFlush(requireEmailInRegister ? formatRegisterEmailMessagePacket : formatRegisterMessagePacket);
+            return;
+        }
+
+        if (choice.equals("decline")) {
+            this.disconnect(termsDeclinedKickPacket);
+            return;
+        }
+
+        this.sendMessage(Messages.getWithPrefix("terms-invalid-input"));
     }
 
     private static final int
@@ -443,10 +510,17 @@ public final class LoginState implements VerifyState {
             incorrectPasswordMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("incorrect-password")),
             incorrectPasswordKickPacket = PacketPlayOutDisconnect.snapshot(Messages.getWithPrefix("incorrect-password")),
             formatRegisterMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("format-register")),
+            formatRegisterEmailMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("format-register-email")),
             formatLoginMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("format-login")),
-            registerPasswordsDoNotMatchMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("commands-register-passwords-do-not-match"));
+            registerPasswordsDoNotMatchMessagePacket = PacketPlayOutMessage.snapshot(Messages.getWithPrefix("commands-register-passwords-do-not-match")),
+            termsDeclinedKickPacket = PacketPlayOutDisconnect.snapshot(Messages.getWithPrefix("terms-declined-kick"));
 
     private void handleRegisterCommand(String[] args) {
+        if (requireEmailInRegister) {
+            this.handleRegisterCommandWithEmail(args);
+            return;
+        }
+
         switch (args.length) {
             //todo: reconsider
             case 1: {//accept single inputs, even if repeat is explicitly enabled
@@ -474,6 +548,44 @@ public final class LoginState implements VerifyState {
             default: {
                 this.duplexHandler.writeAndFlush(formatRegisterMessagePacket);
             }
+        }
+    }
+
+    //Handles /register when a mandatory email is configured ('require-email-in-register'). Expected format is either
+    // /register <password> <email>, or /register <password> <password> <email> when password-repeat is also enabled.
+    private void handleRegisterCommandWithEmail(String[] args) {
+        int expectedArgs = requirePasswordRepeatInRegister ? 3 : 2;
+        if (args.length != expectedArgs) {
+            this.duplexHandler.writeAndFlush(formatRegisterEmailMessagePacket);
+            return;
+        }
+
+        String password = args[0];
+
+        if (requirePasswordRepeatInRegister) {
+            String repeat = args[1];
+            if (!password.equals(repeat)) {
+                this.duplexHandler.writeAndFlush(registerPasswordsDoNotMatchMessagePacket);
+                return;
+            }
+        }
+
+        String email = args[args.length - 1];
+        if (!EmailHandler.isValidEmail(email)) {
+            this.sendMessage(Messages.getWithPrefix("verify-mail.invalid-email"));
+            return;
+        }
+
+        PersistentUserData registered = this.registerIfValid(password, LoginType.COMMAND);
+        //registerIfValid returns null when the password itself was rejected (e.g. invalid characters/length) - in that case a message was already sent, so skip attaching the email
+        if (registered != null) {
+            //the email is saved here, but NOT verified yet - actually sending the verification code is deliberately not done here, to avoid sending further
+            // asynchronous feedback over a connection that's about to be handed off/invalidated by the login process. Instead, a flag is stashed on the
+            // underlying Channel (which survives the hand-off) so that VerifiedPacketProcessor can automatically kick off verification once the player
+            // has fully joined and has a stable connection - see LoginInfo.markPendingEmailVerification
+            registered.setEmail(email);
+            LoginInfo.markPendingEmailVerification(this.connection.getChannel());
+            this.sendMessage(Messages.getWithPrefix("register-email-saved", email));
         }
     }
 

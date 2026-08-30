@@ -222,6 +222,8 @@ public abstract class AlixFileManager {
     @SneakyThrows
     public static File writeJarCompiledFileIntoDest(File copyInto, String s) {
         Class<?> clazz = AlixCommonMain.MAIN_CLASS_INSTANCE.getClass();
+        File parent = copyInto.getParentFile();
+        if (parent != null) parent.mkdirs();//ensure any subdirectories (e.g. for namespaced/nested resources such as language files) exist before creating the file
         copyInto.createNewFile();
 
         boolean written = writeJarCompiledFileIntoDest(copyInto, clazz.getResourceAsStream(s)) != null;

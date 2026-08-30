@@ -1,6 +1,7 @@
 package alix.velocity.systems.packets;
 
 import alix.common.data.LoginType;
+import alix.common.data.security.email.EmailHandler;
 import alix.common.messages.AlixMessage;
 import alix.common.messages.Messages;
 import alix.common.utils.config.ConfigParams;
@@ -9,6 +10,7 @@ import alix.velocity.Main;
 import alix.velocity.systems.packets.anvil.VerifiedAnvilBuilder;
 import alix.velocity.systems.packets.gui.VelocityAuthBuilder;
 import alix.velocity.systems.packets.gui.impl.IpAutoLoginGUI;
+import alix.velocity.utils.AlixUtils;
 import alix.velocity.utils.user.VerifiedUser;
 import com.github.retrooper.packetevents.event.simple.PacketPlayReceiveEvent;
 import com.github.retrooper.packetevents.event.simple.PacketPlaySendEvent;
@@ -64,6 +66,16 @@ public final class VerifiedPacketProcessor {
         this.currentAction = CurrentAction.NONE;
 
         this.logJoin();
+        if (this.loginInfo.pendingEmailVerification()) this.sendPendingEmailVerification();
+    }
+
+    //Automatically kicks off email verification (reusing the same flow as the manual '/account sendverifyemail' command) for a player who just
+    //registered with an email via 'require-email-in-register'. Safe to do here since, unlike the pre-login limbo connection, this runs against
+    //the player's real, stable post-login connection.
+    private void sendPendingEmailVerification() {
+        var email = this.user.getData().getEmail();
+        if (email == null) return; //defensive - should not happen, the email is set synchronously during registration before this flag is ever set
+        EmailHandler.sendVerifyMail(this.user.getPlayer(), email.email(), false, AlixUtils::sendMessage);
     }
 
     private static final String

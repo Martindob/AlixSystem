@@ -1,10 +1,12 @@
 package alix.loaders.velocity;
 
+import alix.common.AlixCommonMain;
 import alix.common.AlixMain;
 import alix.common.MainClass;
 import alix.common.logger.AlixLoggerProvider;
 import alix.common.logger.LoggerAdapter;
 import alix.common.logger.velocity.VelocityLoggerAdapter;
+import alix.common.utils.config.ConfigProvider;
 import alix.common.utils.file.update.FileUpdater;
 import alix.loaders.classloader.LoaderBootstrap;
 import com.google.inject.Inject;
@@ -119,14 +121,23 @@ public final class VelocityAlixMain implements AlixLoggerProvider, AlixMain {
 
     private static final class ParamImpl implements Params {
 
+        //supported message-language codes, matching the file names under the "langs" resource folder (e.g. "en" -> langs/en.yml)
+        private static final java.util.Set<String> SUPPORTED_LANGUAGES = java.util.Set.of("en", "cs");
+        private static final String DEFAULT_LANGUAGE = "en";
+
         @Override
         public String messagesFileName() {
-            return "messages.properties";
+            String language = ConfigProvider.config.getString("language", DEFAULT_LANGUAGE).toLowerCase();
+            if (!SUPPORTED_LANGUAGES.contains(language)) {
+                AlixCommonMain.logWarning("Unsupported 'language' value '" + language + "' in config.yml, falling back to '" + DEFAULT_LANGUAGE + "'. Supported values: " + SUPPORTED_LANGUAGES);
+                language = DEFAULT_LANGUAGE;
+            }
+            return "langs/" + language + ".yml";
         }
 
         @Override
         public char messagesSeparator() {
-            return '=';
+            return ':';
         }
 
         private ParamImpl() {
