@@ -45,8 +45,30 @@ max-code-attempts: 3
 # Within the template file, you may use the following placeholders, which will be replaced automatically:
 #  {code} - the 6-digit verification code
 #  {command} - the full command the player needs to run to verify (e.g. /account verifyemail 123456)
+#  {verification_link} - a one-click web verification link (see the WEB VERIFICATION LINK section below); empty string if that feature is disabled
 # Images (e.g. a logo) can be included in two ways:
 #  - a remotely-hosted image: just use a normal <img src="https://your-site.com/logo.png"> tag, no extra steps needed
 #  - a locally embedded image: place the image file in this plugin's "email-templates/images" folder (created automatically),
 #    then reference it as <img src="cid:yourimage.png"> (using the exact file name) - it will be attached to the email directly
 custom-verify-email-template: ""
+
+
+#------------------------------------------------#
+#             WEB VERIFICATION LINK              #
+#------------------------------------------------#
+
+
+# Defines whether verification emails additionally include a one-click web link that verifies the player's email the
+# moment it's opened in a browser, instead of requiring them to type a code into the game. This runs a small built-in
+# webserver that must be reachable from the internet (typically behind your own reverse proxy/domain) - if you're not
+# sure what that means, leave this disabled; the in-game code (/account verifyemail <code>) still always works either way.
+enable-web-verification: false
+# The local address/port the built-in webserver binds to
+web-verification-bind-address: "0.0.0.0"
+web-verification-port: 8091
+# The externally-reachable base URL players' browsers will actually hit when they click the link in their email, e.g.
+# "https://verify.your-domain.com" if reverse-proxied, or "http://your.server.ip:8091" if exposed directly.
+# This MUST be set correctly, or the links included in outgoing emails will not work.
+web-verification-public-url: ""
+# How many minutes a verification link stays valid for before it expires (each link can also only ever be used once)
+web-verification-token-expiry-minutes: 30

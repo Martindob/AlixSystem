@@ -11,6 +11,10 @@ public final class EmailConfig {
     public final int port;
     //file name of a custom HTML verification-email template, relative to the plugin's "email-templates" folder; empty means the built-in default template is used
     public final String customVerifyEmailTemplate;
+    //settings for the optional built-in webserver that lets players verify their email via a clickable link instead of typing a code in-game
+    public final boolean enableWebVerification;
+    public final String webVerificationBindAddress, webVerificationPublicUrl;
+    public final int webVerificationPort, webVerificationTokenExpiryMinutes;
 
     EmailConfig() {
         var file = AlixFileManager.getOrCreatePluginFile("email-config.yml", AlixFileManager.FileType.CONFIG);
@@ -22,6 +26,11 @@ public final class EmailConfig {
         this.sender = config.getString("sender");
         this.port = config.getInt("port");
         this.customVerifyEmailTemplate = config.getString("custom-verify-email-template", "");
+        this.enableWebVerification = config.getBoolean("enable-web-verification", false);
+        this.webVerificationBindAddress = config.getString("web-verification-bind-address", "0.0.0.0");
+        this.webVerificationPort = config.getInt("web-verification-port", 8091);
+        this.webVerificationPublicUrl = config.getString("web-verification-public-url", "");
+        this.webVerificationTokenExpiryMinutes = config.getInt("web-verification-token-expiry-minutes", 30);
     }
 
     public static void init() {

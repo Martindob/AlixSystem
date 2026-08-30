@@ -1,0 +1,37 @@
+#--------------------------------------------------------------------------------------------#
+#                 Login Settings menu - configurable positions & actions                      #
+#--------------------------------------------------------------------------------------------#
+#
+# This file controls the Login Settings sub-menu (opened from /account). The menu SIZE (9
+# slots, a single row) is fixed. The two settings buttons here reflect and change live account
+# data, so their appearance stays built-in - each entry below just needs "internal" + "slot".
+#
+# Valid internal ids:
+#   ip-autologin    - toggles IP auto-login on/off
+#   email-recovery   - shows whether an email is set (informational only; only appears at all
+#                       if email-based account recovery is enabled on this server)
+#   back              - returns to the menu that opened this one
+#
+# You can also add your own purely decorative or generic-action items anywhere else in the
+# grid - see gui-menus/account.yml's comments for the full settings/actions reference.
+#
+# background.material / background.name - the filler item shown in every slot with no item assigned.
+
+title: "@gui-title-login-settings"
+
+background.material: GRAY_STAINED_GLASS_PANE
+background.name: "&f"
+
+item-order:
+  - ip-autologin
+  - email-recovery
+  - back
+
+items.ip-autologin.slot: 0
+items.ip-autologin.internal: ip-autologin
+
+items.email-recovery.slot: 1
+items.email-recovery.internal: email-recovery
+
+items.back.slot: 8
+items.back.internal: back

@@ -17,6 +17,8 @@ import alix.velocity.systems.packets.gui.AlixGUI;
 import alix.velocity.systems.packets.gui.GUIItem;
 import alix.velocity.systems.packets.gui.changes.AuthDataChanges;
 import alix.velocity.systems.packets.gui.inv.InventoryGui;
+import alix.velocity.systems.packets.gui.menu.MenuBuilder;
+import alix.velocity.systems.packets.gui.menu.MenuConfig;
 import alix.velocity.utils.user.VerifiedUser;
 import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
@@ -28,17 +30,16 @@ import ua.nanit.limbo.connection.login.gui.bedrock.AbstractAuthBuilder;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.util.Arrays;
+import java.util.Map;
 
 public final class GoogleAuthGUI extends AlixGUI {
 
-    private static final GUIItem whatIsThis;
+    private static final String MENU_NAME = "google-auth";
+
     private static final ItemStack showQRCodeItem, applyChangesItem;
     private static final AuthItemType PASSWORD, AUTH, AUTH_AND_PASSWORD;
-    private static final String guiTitle;
 
     static {
-        guiTitle = Messages.get("gui-title-google-auth");
         PASSWORD = new AuthItemType(setLore(create(ItemTypes.OBSIDIAN, Messages.get("gui-google-auth-config-password-name")), Messages.getSplit("gui-google-auth-config-password-lore")), AuthSetting.PASSWORD);
         AUTH = new AuthItemType(setLore(create(ItemTypes.NETHER_STAR, Messages.get("gui-google-auth-config-auth-name")), Messages.getSplit("gui-google-auth-config-auth-lore")), AuthSetting.AUTH_APP);
         AUTH_AND_PASSWORD = new AuthItemType(setLore(create(ItemTypes.BEACON, Messages.get("gui-google-auth-config-auth-and-password-name")), Messages.getSplit("gui-google-auth-config-auth-and-password-lore")), AuthSetting.PASSWORD_AND_AUTH_APP);
@@ -49,10 +50,6 @@ public final class GoogleAuthGUI extends AlixGUI {
     };
 
     static {
-        whatIsThis = new GUIItem(AbstractAuthBuilder.ofSkull(Messages.get("gui-google-auth-what-is-this-name"), "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmMyNzEwNTI3MTllZjY0MDc5ZWU4YzE0OTg5NTEyMzhhNzRkYWM0YzI3Yjk1NjQwZGI2ZmJkZGMyZDZiNWI2ZSJ9fX0="));
-        String[] loreWhatIsThis = Messages.get("gui-google-auth-what-is-this").split(" -nl ");
-        setLore(whatIsThis.getItem(), loreWhatIsThis);
-
         showQRCodeItem = AbstractAuthBuilder.ofSkull(Messages.get("gui-google-auth-show-qr-code-name"), "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTUzYzE0OTUwZmMzNjQ2NzhiNzU1NDRhY2IxZGEwYzk0MjBiNTA2ZTU4NzEyMDM5M2IzZDFhZDQ4OThlNzRmIn19fQ==");
         String[] loreQRCode = Messages.get("gui-google-auth-show-qr-code-lore").split(" -nl ");
         setLore(showQRCodeItem, loreQRCode);
@@ -62,17 +59,15 @@ public final class GoogleAuthGUI extends AlixGUI {
 
     private final AbstractAlixGUI originalGui;
 
-    //private final VerifiedUser user;
-
     private GoogleAuthGUI(VerifiedUser user, AbstractAlixGUI originalGui) {
-        super(user, AlixInventoryType.GENERIC_9X3, guiTitle);
+        super(user, AlixInventoryType.GENERIC_9X3, MenuConfig.get(MENU_NAME).getTitle());
         this.originalGui = originalGui;
     }
 
     @Override
     protected GUIItem[] create(InventoryGui inv) {
-        GUIItem[] items = new GUIItem[27];
-        Arrays.fill(items, BACKGROUND_ITEM);
+        MenuConfig menu = MenuConfig.get(MENU_NAME);
+        int size = AlixInventoryType.GENERIC_9X3.size();
         AuthDataChanges changes = new AuthDataChanges();
 
         LoginParams params = user.getData().getLoginParams();
@@ -80,13 +75,9 @@ public final class GoogleAuthGUI extends AlixGUI {
         LoopList<AuthItemType> authList = LoopList.of(AUTH_TYPES);
         authList.setCurrentIndex(authList.indexOfFirst(t -> t.authSetting.equals(params.getAuthSettings())));
 
-        items[8] = new GUIItem(GO_BACK_ITEM, event -> {
-            this.originalGui.map(); //set the originalGui gui as used
-        });
+        GUIItem backGuiItem = new GUIItem(GO_BACK_ITEM, event -> this.originalGui.map());//set the originalGui gui as used
 
-        items[10] = whatIsThis;
-
-        items[13] = new GUIItem(showQRCodeItem, e -> this.user.getChannel().eventLoop().execute(() -> {
+        GUIItem showQRGuiItem = new GUIItem(showQRCodeItem, e -> this.user.getChannel().eventLoop().execute(() -> {
             var token = this.user.getData().getToken();
             try {
                 byte[] imgBytes = GoogleAuthUtils.createQRCode(
@@ -117,20 +108,29 @@ public final class GoogleAuthGUI extends AlixGUI {
             }
         }));
 
-        items[16] = new GUIItem(authList.current().item, event -> {
+        int[] authTypeSlots = menu.getSlotsForInternal("auth-type");
+        GUIItem authTypeGuiItem = new GUIItem(authList.current().item, event -> {
             var type = ContainerClickWrapper.getAlixClickType(event);
             switch (type) {
                 case LEFT_CLICK:
                 case RIGHT_CLICK:
                     AuthItemType c = type == AlixClickType.RIGHT_CLICK ? authList.previous() : authList.next();
                     changes.setAuthSetting(c.authSetting);
-                    gui.setItem(16, c.item);
+                    for (int slot : authTypeSlots) gui.setItem(slot, c.item);
                     break;
             }
         });
 
-        items[26] = new GUIItem(applyChangesItem, event -> changes.tryApply(user));
-        return items;
+        GUIItem applyChangesGuiItem = new GUIItem(applyChangesItem, event -> changes.tryApply(user));
+
+        Map<String, GUIItem> internalItems = Map.of(
+                "back", backGuiItem,
+                "show-qr", showQRGuiItem,
+                "auth-type", authTypeGuiItem,
+                "apply-changes", applyChangesGuiItem
+        );
+
+        return MenuBuilder.build(menu, size, this.user, internalItems);
     }
 
     public static void add(VerifiedUser user, AbstractAlixGUI originalGui) {

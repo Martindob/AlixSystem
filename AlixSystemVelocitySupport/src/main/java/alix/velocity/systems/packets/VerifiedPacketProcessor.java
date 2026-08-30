@@ -75,7 +75,7 @@ public final class VerifiedPacketProcessor {
     private void sendPendingEmailVerification() {
         var email = this.user.getData().getEmail();
         if (email == null) return; //defensive - should not happen, the email is set synchronously during registration before this flag is ever set
-        EmailHandler.sendVerifyMail(this.user.getPlayer(), email.email(), false, AlixUtils::sendMessage);
+        EmailHandler.sendVerifyMail(this.user.getPlayer(), this.user.getName(), email.email(), false, AlixUtils::sendMessage);
     }
 
     private static final String

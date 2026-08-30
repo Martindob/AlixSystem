@@ -112,6 +112,14 @@ public final class LoginState implements VerifyState {
     }
 
     public PersistentUserData registerIfValid(String password, LoginType type) {
+        //Central choke point for EVERY registration flow (chat command, anvil GUI, PIN GUI, bedrock form) -
+        //enforced here rather than only in the chat-command path, so no login type can register a new
+        //account without first accepting the Terms & Conditions when 'require-terms-acceptance' is on.
+        if (this.isTermsGateBlocking()) {
+            this.sendTermsPrompt();
+            return null;
+        }
+
         //can be optimized by creating PacketSnapshots for constant messages
         @OptimizationCandidate
         String reason = AlixCommonUtils.getPasswordInvalidityReason(password, type);
@@ -122,6 +130,10 @@ public final class LoginState implements VerifyState {
         }
 
         return this.register0(password);
+    }
+
+    private boolean isTermsGateBlocking() {
+        return !this.isRegistered && requireTermsAcceptance && !this.termsAccepted;
     }
 
     private PersistentUserData register0(String password) {
@@ -180,7 +192,10 @@ public final class LoginState implements VerifyState {
     }
 
     public boolean isPasswordCorrect(String password) {
-        return this.loginVerification.isPasswordCorrect(password);
+        //loginVerification is only created for password-based accounts (see setData()) - an
+        //authenticator-app-only ("AUTH_APP") account has none, so guard against it defensively rather
+        //than risk an NPE if a password check is ever attempted for one.
+        return this.loginVerification != null && this.loginVerification.isPasswordCorrect(password);
     }
 
     //true if the connection will stay alive (the user wasn't kicked)
@@ -366,8 +381,12 @@ public final class LoginState implements VerifyState {
 
         //Log.error("LOGIN SENT: " + this.gui + " NAMES: " + this.connection.getChannel().pipeline().names());
 
-        //prompt unregistered command-type users to accept the Terms & Conditions before they're allowed to register
-        if (!this.isRegistered && requireTermsAcceptance && !this.termsAccepted && this.gui == null)
+        //Prompt unregistered players to accept the Terms & Conditions before they're allowed to register.
+        //Sent via chat regardless of whether a login GUI (anvil/PIN/bedrock) is also showing, since chat
+        //messages are still delivered while such a GUI is open, and registerIfValid() enforces the actual
+        //gate for every login type - so GUI-only players still need to see this to know why registering
+        //isn't working yet and that they must type "/terms accept" in chat first.
+        if (this.isTermsGateBlocking())
             this.sendTermsPrompt();
     }
 
@@ -377,6 +396,13 @@ public final class LoginState implements VerifyState {
         String[] split = rawCmd.split(" ");
         String cmdName = split[0].toLowerCase();
         String[] args = Arrays.copyOfRange(split, 1, split.length);
+
+        //While a login GUI (anvil/PIN/bedrock/2FA/recovery) is showing, the only commands still allowed
+        //through chat are "recovery" (to start/continue account recovery) and "terms" (to accept/decline
+        //the Terms & Conditions, since that's chat-only and has no GUI of its own) - everything else must
+        //go through the GUI itself. This is enforced once here so it applies uniformly to every command
+        //source: signed and unsigned 1.19+ command packets and legacy pre-1.19 chat-as-command alike.
+        if (this.gui != null && !cmdName.equals("recovery") && !cmdName.equals("terms")) return;
 
         if (cmdName.equals("recovery")) {
             this.handleRecoveryCommand(args);
@@ -393,7 +419,7 @@ public final class LoginState implements VerifyState {
             return;
         }
 
-        if (requireTermsAcceptance && !this.termsAccepted) {
+        if (this.isTermsGateBlocking()) {
             this.sendTermsPrompt();
             return;
         }

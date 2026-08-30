@@ -42,7 +42,15 @@ public final class EmailHandler {
         return email != null && EMAIL_PATTERN.matcher(email).matches();
     }
 
+    //Kept for existing call sites that don't have/need a player name (e.g. the console/server-email-verify flow, which isn't tied to any player account) - equivalent to passing playerName=null below, meaning no clickable web-verification link is included.
     public static <T> void sendVerifyMail(T caller, String email, boolean console, BiConsumer<T, String> sendMessage) {
+        sendVerifyMail(caller, null, email, console, sendMessage);
+    }
+
+    //Same as above, but with the player's name, allowing a clickable web-verification link (see WebVerificationServer) to be
+    //included in the email alongside the code - only meaningful when console=false (there is no "player" for the server's own
+    //outgoing-address verification). Pass null for playerName if unavailable/not applicable.
+    public static <T> void sendVerifyMail(T caller, String playerName, String email, boolean console, BiConsumer<T, String> sendMessage) {
         if (!isValidEmail(email)) {
             sendMessage.accept(caller, Messages.get("verify-mail.invalid-email"));
             return;
@@ -52,7 +60,7 @@ public final class EmailHandler {
         VERIFY_CODES.put(caller, new EmailVerificationSession(verifyCode, email));
 
         sendMessage.accept(caller, Messages.get("verify-mail.requesting-send"));
-        sendEmail(email, Messages.get("verify-mail.email-subject"), buildVerifyEmailBody(verifyCode, console)).whenComplete((v, ex) -> {
+        sendEmail(email, Messages.get("verify-mail.email-subject"), buildVerifyEmailBody(verifyCode, playerName, email, console)).whenComplete((v, ex) -> {
             if (ex != null) {
                 sendMessage.accept(caller, Messages.get("verify-mail.send-failed"));
                 return;
@@ -62,18 +70,25 @@ public final class EmailHandler {
     }
 
     //builds the HTML body of the verification email, using a custom operator-provided template (if configured) instead of the built-in default
-    private static String buildVerifyEmailBody(String verifyCode, boolean console) {
+    private static String buildVerifyEmailBody(String verifyCode, String playerName, String email, boolean console) {
         String command = console ? "/as verifyemail " + verifyCode : "/account verifyemail " + verifyCode;
+        //only meaningful for a real player's own email, not the server's own outgoing-address verification (console=true)
+        String link = (!console && playerName != null)
+                ? WebVerificationServer.createVerificationLink(playerName, email).orElse("")
+                : "";
+
         String customTemplate = EmailConfig.INSTANCE.customVerifyEmailTemplate;
 
         if (customTemplate != null && !customTemplate.isBlank()) {
             var loaded = EmailTemplateLoader.load(customTemplate);
             if (loaded.isPresent())
-                return loaded.get().replace("{code}", verifyCode).replace("{command}", command);
+                return loaded.get().replace("{code}", verifyCode).replace("{command}", command).replace("{verification_link}", link);
             //falls through to the default template below if the custom one could not be loaded
         }
 
-        return Messages.get("verify-mail.email-body", command);
+        String body = Messages.get("verify-mail.email-body", command);
+        if (!link.isEmpty()) body += "<br><br>" + Messages.get("verify-mail.email-body-link", link);
+        return body;
     }
 
     public static <T> void sendRecoveryMail(T caller, String email, BiConsumer<T, String> sendMessage) {

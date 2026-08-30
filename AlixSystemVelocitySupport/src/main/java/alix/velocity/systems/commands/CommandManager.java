@@ -103,7 +103,7 @@ public final class CommandManager {
                             Player player = (Player) ctx.getSource();
                             String email = StringArgumentType.getString(ctx, "email");
 
-                            EmailHandler.sendVerifyMail(player, email, false, AlixUtils::sendMessage);
+                            EmailHandler.sendVerifyMail(player, player.getUsername(), email, false, AlixUtils::sendMessage);
                             return SINGLE_SUCCESS;
                         })
                 );
