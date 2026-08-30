@@ -65,9 +65,17 @@ public final class MenuItemDef {
         String base = "items." + id;
         String prefix = base + ".";
 
-        int[] slots = parseSlots(config.getString(prefix + "slot", config.getString(prefix + "slots", "")), base);
+        //"slot" is the only key the default configs ever actually set; "slots" (plural) is tolerated as an
+        //alias but must only be looked up (and only via the quiet getter) when "slot" itself is genuinely
+        //absent - looking it up unconditionally as a default-value expression, as before, evaluated it (and
+        //logged a spurious "not found" warning for it) on every single item, even when "slot" was present.
+        String slotRaw = config.getStringQuiet(prefix + "slot", "");
+        if (slotRaw.isBlank()) slotRaw = config.getStringQuiet(prefix + "slots", "");
+        int[] slots = parseSlots(slotRaw, base);
 
-        String internalId = config.getString(prefix + "internal", "");
+        //"internal" is only set by the handful of stateful buttons per menu (a live setting toggle, a
+        //cycling value, an input flow) - most items don't set it, so this must not warn when absent.
+        String internalId = config.getStringQuiet(prefix + "internal", "");
         if (!internalId.isBlank()) return new MenuItemDef(id, slots, internalId.trim(), null, List.of());
 
         ItemStack icon = buildIcon(config, base, ItemTypes.STONE, id);
@@ -123,7 +131,10 @@ public final class MenuItemDef {
         String name = resolveText(config.getString(prefix + "name", ""), defaultName);
         String[] lore = resolveLore(config, prefix);
 
-        String headTexture = config.getString(prefix + "head-texture", "");
+        //head-texture/item-model/custom-model-data are all optional per-item overrides that most items
+        //never set (they use a plain "material" instead) - looked up quietly so their absence, the normal
+        //case, doesn't spam a "not found" warning on every menu load.
+        String headTexture = config.getStringQuiet(prefix + "head-texture", "");
         ItemStack builtBase = headTexture.isBlank()
                 ? AbstractAuthBuilder.of(resolveType(config.getString(prefix + "material", ""), defaultType, base), name)
                 : AbstractAuthBuilder.ofSkull(name, headTexture);
@@ -131,7 +142,7 @@ public final class MenuItemDef {
         ItemStack.Builder builder = copyBuilder(builtBase);
         builder.component(ComponentTypes.LORE, AbstractAuthBuilder.getItemLore(lore));
 
-        String itemModel = config.getString(prefix + "item-model", "");
+        String itemModel = config.getStringQuiet(prefix + "item-model", "");
         if (!itemModel.isBlank()) {
             try {
                 builder.component(ComponentTypes.ITEM_MODEL, new ItemModel(new ResourceLocation(itemModel)));
@@ -140,7 +151,7 @@ public final class MenuItemDef {
             }
         }
 
-        int customModelData = config.getInt(prefix + "custom-model-data", -1);
+        int customModelData = config.getIntQuiet(prefix + "custom-model-data", -1);
         if (customModelData >= 0) builder.component(ComponentTypes.CUSTOM_MODEL_DATA, customModelData);
 
         return builder.build();
@@ -166,7 +177,9 @@ public final class MenuItemDef {
      * list entry is resolved individually (literal text, or its own "@key" reference), one per line.
      */
     private static String[] resolveLore(AlixYamlConfig config, String prefix) {
-        List<String> raw = config.getStringList(prefix + "lore");
+        //Most items don't set lore at all - looked up quietly so that, unlike a genuinely malformed
+        //config, "no lore configured" (the common case) doesn't log a "not found" warning.
+        List<String> raw = config.getStringListQuiet(prefix + "lore");
         if (raw.size() == 1 && raw.get(0).trim().startsWith("@")) {
             return Messages.getSplit(raw.get(0).trim().substring(1).trim());
         }

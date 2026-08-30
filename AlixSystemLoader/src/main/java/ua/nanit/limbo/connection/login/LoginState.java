@@ -409,13 +409,19 @@ public final class LoginState implements VerifyState {
             return;
         }
 
-        if (this.isRegistered) {
-            this.handleLoginCommand(args);
+        //Dispatched before the isRegistered check below (like "recovery" above), even though "terms" is only
+        //ever meaningful for an unregistered account - handleTermsCommand() itself now no-ops for a registered
+        //one. Previously this branch sat AFTER the isRegistered check, so a registered player typing
+        //"/terms accept"/"/terms decline" while their login GUI was open (allowed through by the gate above)
+        //fell into handleLoginCommand() instead, silently treating "accept"/"decline" as a wrong password guess
+        //and burning one of their limited login attempts.
+        if (cmdName.equals("terms")) {
+            this.handleTermsCommand(args);
             return;
         }
 
-        if (cmdName.equals("terms")) {
-            this.handleTermsCommand(args);
+        if (this.isRegistered) {
+            this.handleLoginCommand(args);
             return;
         }
 
@@ -436,6 +442,22 @@ public final class LoginState implements VerifyState {
 
     //Handles the pre-login '/terms accept' and '/terms decline' commands, used to gate registration behind Terms & Conditions acceptance
     private void handleTermsCommand(String[] args) {
+        //Only meaningful for an unregistered account - a registered one has nothing to accept/decline, so
+        //just ignore it rather than falling through to any register/login-flow behavior. (This is reachable
+        //now that "terms" is dispatched before the isRegistered check above, mirroring "recovery".)
+        if (this.isRegistered) return;
+
+        //If 'require-terms-acceptance' is off, this command has nothing to gate - previously it would still
+        //flip the internal (unused, in that case) termsAccepted flag and immediately show the "Format:
+        ///register ..." hint regardless, which looked like this command "did something" (and, taken together
+        //with registration then succeeding normally since the gate was never active to begin with, could be
+        //misread as terms acceptance being silently bypassed) even though the feature is entirely disabled.
+        //Telling the player plainly it isn't required avoids that confusion.
+        if (!requireTermsAcceptance) {
+            this.sendMessage(Messages.getWithPrefix("terms-not-required"));
+            return;
+        }
+
         if (args.length != 1) {
             this.sendMessage(Messages.getWithPrefix("terms-invalid-input"));
             return;

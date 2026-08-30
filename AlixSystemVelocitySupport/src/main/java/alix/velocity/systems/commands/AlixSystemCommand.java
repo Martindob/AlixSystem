@@ -544,8 +544,12 @@ public final class AlixSystemCommand {
             return SINGLE_SUCCESS;
         });
 
-        // Subcommand: lists every command (both admin and player-facing) along with a short description of what it does
+        // Subcommand: lists every command (both admin and player-facing) along with a short description of what it does.
+        // Explicitly overrides the root's "alixsystem.admin" requirement (with "source -> true") since, unlike every
+        // other "/as ..." subcommand, this one is meant to be usable by every player, not just admins - without this
+        // override it inherits the root's requirement and is invisible/unusable for anyone without that permission.
         root.then(BrigadierCommand.literalArgumentBuilder("commands")
+                .requires(source -> true)
                 .executes(context -> {
                     CommandSource sender = context.getSource();
                     sendAdminCommandsList(sender);

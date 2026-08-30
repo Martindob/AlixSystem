@@ -17,7 +17,11 @@ import static ua.nanit.limbo.connection.login.gui.LimboAuthBuilder.ofSkull;
 
 public abstract class AbstractAnvilBuilder<T extends AbstractAnvilBuilder> {
 
-    public static final ItemStack GO_BACK_ITEM = ofSkull("&6Go back", SkullTextures.GO_BACK);
+    //Was hardcoded English literals ("&6Go back", "&7Leave", "&aConfirm", "&cInvalid password"), bypassing
+    //the Messages/i18n system entirely - unlike RECOVER_ITEM just below, which already went through
+    //Messages.get correctly. Now routed through the same lang-key mechanism so these follow the selected
+    //"language" config option instead of always showing English.
+    public static final ItemStack GO_BACK_ITEM = ofSkull(alix.common.messages.Messages.get("gui-go-back"), SkullTextures.GO_BACK);
     public static final ItemStack RECOVER_ITEM = of(ItemTypes.PAPER, alix.common.messages.Messages.get("gui-recover-account"));
     public static final int RECOVER_SLOT = 8;
     private static final String USER_INPUT_STR = "";
@@ -25,9 +29,9 @@ public abstract class AbstractAnvilBuilder<T extends AbstractAnvilBuilder> {
 
     static {
         ItemStack USER_INPUT = of(ItemTypes.PAPER, USER_INPUT_STR);
-        ItemStack LEAVE_BUTTON = of(ItemTypes.BLACK_WOOL, "&7Leave");
-        ItemStack CONFIRM_BUTTON = of(ItemTypes.LIME_WOOL, "&aConfirm");
-        ItemStack INVALID_PASSWORD = of(ItemTypes.RED_WOOL, "&cInvalid password");
+        ItemStack LEAVE_BUTTON = of(ItemTypes.BLACK_WOOL, alix.common.messages.Messages.get("gui-leave"));
+        ItemStack CONFIRM_BUTTON = of(ItemTypes.LIME_WOOL, alix.common.messages.Messages.get("gui-confirm"));
+        ItemStack INVALID_PASSWORD = of(ItemTypes.RED_WOOL, alix.common.messages.Messages.get("gui-invalid-password"));
         ItemStack CANCEL = GO_BACK_ITEM;
 
         itemsValidWithCancel = new ItemStack[]{USER_INPUT, CANCEL, CONFIRM_BUTTON};

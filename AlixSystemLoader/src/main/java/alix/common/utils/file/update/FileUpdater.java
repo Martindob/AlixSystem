@@ -64,8 +64,11 @@ public final class FileUpdater {
         File file = new File(AlixCommonMain.MAIN_CLASS_INSTANCE.getDataFolder(), name);
 
         if (!file.exists()) {
-            file.createNewFile();
-
+            //note: don't call file.createNewFile() here - it fails with an IOException on Windows
+            //("system cannot find the path specified") whenever the file lives in a subdirectory
+            //(e.g. "langs/en.yml") that hasn't been created yet, since createNewFile() never makes
+            //parent directories. writeJarCompiledFileIntoDest() below already does the equivalent
+            //(parent.mkdirs() + createNewFile()) safely, so just let it create the file too.
             AlixFileManager.writeJarCompiledFileIntoDest(file, name);//writes the newest info into the file
             return file;//no need to continue, the file must be up to date
         }

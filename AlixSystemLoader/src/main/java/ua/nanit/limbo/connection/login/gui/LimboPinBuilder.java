@@ -24,7 +24,9 @@ import static ua.nanit.limbo.connection.login.packets.SoundPackets.*;
 
 public final class LimboPinBuilder implements LimboGUI {
 
-    private static final PacketSnapshot pinInvalidLengthMessagePacket = PacketPlayOutMessage.snapshot("&cPin invalid length");
+    //Was a hardcoded English literal ("&cPin invalid length"), bypassing the Messages/i18n system that every
+    //other message/item in this class already goes through (see PIN_CONFIRM_ITEM etc. just below).
+    private static final PacketSnapshot pinInvalidLengthMessagePacket = PacketPlayOutMessage.snapshot(Messages.get("pin-invalid-length"));
 
     private static final int[] PIN_DIGIT_SLOTS = new int[]{28, 0, 1, 2, 9, 10, 11, 18, 19, 20};
     public static final int maxLoginAttempts = ConfigProvider.config.getInt("max-login-attempts");

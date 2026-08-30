@@ -75,6 +75,59 @@ public final class AlixYamlConfig {
         return this.getString(path, "");
     }
 
+    /**
+     * Like {@link #getString(String, String)}, but never logs a "param not found" warning when the key
+     * is absent. Intended for genuinely optional keys (e.g. a menu item's optional lore/head-texture/
+     * item-model/custom-model-data/internal fields, where most items simply don't set most of them) -
+     * using the warning-logging variant there would spam the console on every first load of a menu,
+     * since "not set" is the normal, expected case for those keys, not a config mistake.
+     */
+    @NotNull
+    public String getStringQuiet(String path, @NotNull String def) {
+        String val = this.file.values.get(path);
+        if (val == null) {
+            List<String> list = this.file.lists.get(path);
+            if (list != null && !list.isEmpty()) val = list.get(0);
+        }
+        return val != null ? removeQuotations(val.trim()) : def;
+    }
+
+    /**
+     * Quiet counterpart to {@link #getInt(String, int)} - see {@link #getStringQuiet(String, String)}.
+     */
+    public int getIntQuiet(String path, int def) {
+        String value = this.getStringQuiet(path, String.valueOf(def));
+        Integer parsed = this.parse(value, Integer::parseInt);
+        if (parsed != null) return parsed;
+        parsed = this.parse(AlixCommonUtils.getNumbersOnly(value.split("\\.")[0]), Integer::parseInt);
+        return parsed != null ? parsed : def;
+    }
+
+    /**
+     * Quiet counterpart to {@link #getStringList(String)} - see {@link #getStringQuiet(String, String)}.
+     */
+    @NotNull
+    public List<String> getStringListQuiet(String path) {
+        List<String> list = this.file.lists.get(path);
+        if (list == null || list.isEmpty()) {
+            String val = this.file.values.get(path);
+            list = val == null ? List.of() : List.of(val);
+        }
+        List<String> transformed = new ArrayList<>(list.size());
+        for (String s : list)
+            transformed.add(removeQuotations(s));
+        return transformed;
+    }
+
+    /**
+     * True if this config file has a value or list explicitly set for the given key (as opposed to it
+     * being absent and any lookup falling back to a default). Useful to distinguish "not configured" from
+     * "configured to the same value as the default" when that distinction matters.
+     */
+    public boolean hasKey(String path) {
+        return this.file.values.containsKey(path) || this.file.lists.containsKey(path);
+    }
+
     private static String removeQuotations(String str) {
         if (str.length() <= 1) return str;
         char first = str.charAt(0);
