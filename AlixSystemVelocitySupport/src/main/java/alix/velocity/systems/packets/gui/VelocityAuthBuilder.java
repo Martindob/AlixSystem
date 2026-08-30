@@ -24,7 +24,7 @@ public final class VelocityAuthBuilder extends AbstractAuthBuilder {
     private final CipherHandler cipher;
 
     public VelocityAuthBuilder(VerifiedUser user, Consumer<Boolean> onConfirm, boolean includeLeaveButton) {
-        super(user.getData().tokenKey(), onConfirm, includeLeaveButton);
+        super(user.getData(), onConfirm, includeLeaveButton);
         this.user = user;
         this.channel = user.getChannel();
         this.version = Version.of(user.user.getClientVersion().getProtocolVersion());

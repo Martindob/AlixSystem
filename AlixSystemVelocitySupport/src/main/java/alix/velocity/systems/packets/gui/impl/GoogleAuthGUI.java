@@ -1,6 +1,5 @@
 package alix.velocity.systems.packets.gui.impl;
 
-import alix.common.antibot.captcha.secrets.files.UserTokensFileManager;
 import alix.common.data.AuthSetting;
 import alix.common.data.LoginParams;
 import alix.common.login.auth.GoogleAuthExplanation;
@@ -88,7 +87,7 @@ public final class GoogleAuthGUI extends AlixGUI {
         items[10] = whatIsThis;
 
         items[13] = new GUIItem(showQRCodeItem, e -> this.user.getChannel().eventLoop().execute(() -> {
-            String token = UserTokensFileManager.getTokenOrSupply(this.user.getData().tokenKey());
+            var token = this.user.getData().getToken();
             try {
                 byte[] imgBytes = GoogleAuthUtils.createQRCode(
                         GoogleAuthUtils.getGoogleAuthenticatorBarCode(token, "#1", "AlixVelocity"),

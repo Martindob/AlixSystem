@@ -23,6 +23,7 @@ import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
+import net.kyori.adventure.text.Component;
 import ua.nanit.limbo.connection.login.packets.SoundPackets;
 
 import static alix.velocity.utils.AlixUtils.sendMessage;
@@ -145,13 +146,13 @@ public final class CommandManager {
                     String reason = AlixCommonUtils.getPasswordInvalidityReason(password, LoginType.ANVIL);
                     if (reason != null) {
                         user.writePacketSilently(SoundPackets.wrapperOf(Sounds.ENTITY_VILLAGER_NO));
-                        player.sendRichMessage(reason);
+                        player.sendMessage(Component.text(reason));
                         return SINGLE_SUCCESS;
                     }
 
-                    data.setLoginType(LoginType.ANVIL);
+                    if (data.getLoginType() == LoginType.PIN)
+                        data.setLoginType(LoginType.ANVIL);
                     data.setPassword(password);
-
                     return SINGLE_SUCCESS;
                 })
         ).build();

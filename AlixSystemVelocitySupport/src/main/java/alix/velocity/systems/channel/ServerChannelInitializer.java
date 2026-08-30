@@ -3,6 +3,8 @@ package alix.velocity.systems.channel;
 import alix.common.AlixCommonMain;
 import alix.common.antibot.algorithms.connection.AntiBotStatistics;
 import alix.common.antibot.epoll.AlixEpollConnection;
+import alix.common.antibot.epoll.Telemetry;
+import alix.common.antibot.epoll.TelemetryProfiler;
 import alix.common.antibot.firewall.FireWallManager;
 import alix.common.antibot.firewall.FireWallType;
 import alix.common.utils.AlixCommonUtils;
@@ -12,6 +14,7 @@ import com.velocitypowered.proxy.network.TransportType;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.unix.AlixFastUnsafeEpoll;
 
 import java.net.InetAddress;
@@ -34,7 +37,9 @@ public final class ServerChannelInitializer extends ChannelInboundHandlerAdapter
                 AlixFastUnsafeEpoll.init(AlixEpollConnection.class);
                 used = FireWallType.FAST_UNSAFE_EPOLL;
                 AlixCommonMain.logInfo("Using Fast Unsafe Epoll for FireWall Protection. Fast IPv4 look-ups are Enabled.");
-            } catch (Throwable ignored) {
+            } catch (Throwable ex) {
+                /*AlixCommonMain.logError("Something went wrong trying to enable the Epoll FireWall, see the error below!");
+                ex.printStackTrace();*/
             }
         }
 
@@ -69,6 +74,11 @@ public final class ServerChannelInitializer extends ChannelInboundHandlerAdapter
         if (!PROXY_PROTOCOL) {
             InetAddress address = AlixCommonUtils.getAddress(channel);
             if (isNettyFireWall) {
+
+                //cuz not enabled in epoll
+                if (Telemetry.ENABLED && channel instanceof EpollSocketChannel epoll)
+                    TelemetryProfiler.PROFILER.onConnection(epoll.fd().intValue(), null);
+
                 if (FireWallManager.isBlocked0(address)) {
                     channel.unsafe().closeForcibly();
                     return;

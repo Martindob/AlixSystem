@@ -3,6 +3,7 @@ package alix.velocity.systems.commands;
 import alix.common.antibot.algorithms.any.PanicModeManager;
 import alix.common.antibot.epoll.Telemetry;
 import alix.common.antibot.epoll.TelemetryProfiler;
+import alix.common.antibot.epoll.TelemetryProfilerImpl;
 import alix.common.antibot.firewall.FireWallManager;
 import alix.common.connection.filters.GeoIPTracker;
 import alix.common.connection.profiler.LimboJoinProfiler;
@@ -324,12 +325,13 @@ public final class AlixSystemCommand {
                                 sendMessage(sender, "IP: &c" + data.getSavedIP().getHostAddress());
                                 sendMessage(sender, "Premium Status: &c" + data.getPremiumData().getStatus().readableName());
 
-                                if (Telemetry.ENABLED && channel != null) {
+                                if (Telemetry.ENABLED && TelemetryProfilerImpl.SAVE_SYN_ENABLED && channel != null) {
                                     var sig = TelemetryProfiler.synSignature(channel);
                                     if (sig != null) {
                                         sendMessage(sender, "Operating System: &c" + sig.os.getReadableName());
                                         sendMessage(sender, "Connection Environment: &c" + sig.mtuEnv.getReadableName());
-                                    }
+                                    } else
+                                        sendMessage(sender, "&c<Could not retrieve SYN Signature> - this is most likely an error");
                                 }
 
                                 if (!data.getSavedIP().equals(PersistentUserData.UNKNOWN_IP)) {//I guess possibly incorrect info when testing on localhost
@@ -551,6 +553,7 @@ public final class AlixSystemCommand {
             sendMessage(sender, "&c/as frd/fullyremovedata <player> &7- Fully removes all account data of the specified player. The data cannot be restored after this operation.");
             sendMessage(sender, "&c/as rs/resetstatus <player> &7- Resets the player's premium status. Mainly aimed to forgive cracked players who used /premium");
             sendMessage(sender, "&c/as fs/forcestatus <player> <status> &7- Forcefully sets the player's premium status (if can safely be done)");
+            sendMessage(sender, "&c/as ufw <ip> &7- Removes the given ip from the Firewall Database, if possible.");
             sendMessage(sender, "");
             return SINGLE_SUCCESS;
         });
