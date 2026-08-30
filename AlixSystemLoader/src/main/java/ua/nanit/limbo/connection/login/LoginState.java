@@ -19,9 +19,15 @@ import alix.common.scheduler.AlixScheduler;
 import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.config.ConfigParams;
 import alix.common.utils.floodgate.GeyserUtil;
+import alix.common.utils.formatter.AlixFormatter;
 import alix.common.utils.other.annotation.OptimizationCandidate;
 import alix.common.utils.other.throwable.AlixError;
 import alix.common.utils.other.throwable.AlixException;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import ua.nanit.limbo.commands.LimboCommand;
 import ua.nanit.limbo.connection.ClientConnection;
 import ua.nanit.limbo.connection.VerifyState;
@@ -436,8 +442,30 @@ public final class LoginState implements VerifyState {
     //Sends the Terms & Conditions prompt (explanation + link + instructions) to an unregistered player
     private void sendTermsPrompt() {
         this.writeMessage(Messages.getWithPrefix("terms-required-explanation"));
-        this.writeMessage(Messages.getWithPrefix("terms-required-link", termsUrl));
+        this.duplexHandler.write(PacketPlayOutMessage.withComponent(buildTermsLinkComponent()));
         this.sendMessage(Messages.getWithPrefix("terms-required-prompt"));
+    }
+
+    //Builds the "terms-required-link" line as a real clickable/hoverable link (opens directly in the
+    //player's browser when clicked) instead of inert plain text - previously sent via writeMessage() like
+    //every other message here, but the legacy '&'/'§'-coded string format that goes through has no way to
+    //attach a click event, so the URL was never actually clickable no matter how it was styled/colored.
+    //The lang key's raw template (still holding its unsubstituted "{0}" placeholder) is split around that
+    //placeholder so the surrounding legacy-formatted text is preserved exactly, with only the URL itself
+    //replaced by the clickable component.
+    private Component buildTermsLinkComponent() {
+        String template = AlixFormatter.appendPrefix(Messages.get("terms-required-link"));
+        String[] parts = template.split("\\{0\\}", 2);
+
+        Component link = Component.text(termsUrl)
+                .clickEvent(ClickEvent.openUrl(termsUrl))
+                .hoverEvent(HoverEvent.showText(Component.text(termsUrl)))
+                .decorate(TextDecoration.UNDERLINED);
+
+        Component result = LegacyComponentSerializer.legacySection().deserialize(parts[0]).append(link);
+        if (parts.length > 1 && !parts[1].isEmpty())
+            result = result.append(LegacyComponentSerializer.legacySection().deserialize(parts[1]));
+        return result;
     }
 
     //Handles the pre-login '/terms accept' and '/terms decline' commands, used to gate registration behind Terms & Conditions acceptance
@@ -467,6 +495,10 @@ public final class LoginState implements VerifyState {
 
         if (choice.equals("accept")) {
             this.termsAccepted = true;
+            //Previously only the "Format: /register ..." hint was sent here, with nothing actually
+            //confirming the acceptance itself - unlike "/terms decline" (which kicks with a clear reason),
+            //a player typing "/terms accept" had no visible confirmation that anything happened at all.
+            this.writeMessage(Messages.getWithPrefix("terms-accepted"));
             this.duplexHandler.writeAndFlush(requireEmailInRegister ? formatRegisterEmailMessagePacket : formatRegisterMessagePacket);
             return;
         }

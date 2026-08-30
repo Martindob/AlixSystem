@@ -19,6 +19,20 @@ final class EmailTemplateLoader {
     private static final String IMAGES_FOLDER_NAME = "images";
 
     /**
+     * Proactively creates the "email-templates" folder (and its "images" subfolder) so operators can find
+     * it and drop a template in right after installing/starting the plugin, instead of it only appearing
+     * as a side effect the first time {@link #load(String)}/{@link #loadImageFile(String)} happen to run -
+     * which, since both are only reached while actually sending a verification email with
+     * 'custom-verify-email-template' already set to a real file, previously meant the folder never
+     * appeared at all for an operator who hadn't gotten that far yet (the exact case reported live: the
+     * folder simply never showed up because no email had ever been sent with a custom template configured).
+     * Called once from {@link EmailConfig}'s constructor, i.e. on every plugin startup.
+     */
+    static void ensureFoldersExist() {
+        new File(templatesFolder(), IMAGES_FOLDER_NAME).mkdirs();
+    }
+
+    /**
      * @param fileName name of the HTML file, relative to the plugin's "email-templates" folder
      * @return the file's content, or empty if the file does not exist or could not be read (in which case the caller should fall back to the default template)
      */

@@ -73,7 +73,15 @@ public final class FileUpdater {
             return file;//no need to continue, the file must be up to date
         }
 
-        File tempFile = new File(file.getParent(), splitName[0] + "-copy." + splitName[1]); //<file name>-copy.<extension>
+        //Was built from splitName[0] (derived from the full, possibly-subdirectory-containing 'name' argument,
+        //e.g. "langs/en" for "langs/en.yml") - since file.getParent() is ALREADY that subdirectory, that
+        //produced a doubled-up path ("<data folder>/langs/langs/en-copy.yml") whose own parent
+        //("<data folder>/langs/langs/") doesn't exist, so tempFile.createNewFile() below threw "system cannot
+        //find the path specified" on every restart once the real per-language file had been created once (a
+        //fresh install never hit this, since a missing file takes the branch above instead). Use the file's
+        //own simple name instead, which is already relative to the correct parent either way.
+        String[] splitFileName = file.getName().split("\\.");
+        File tempFile = new File(file.getParent(), splitFileName[0] + "-copy." + splitFileName[1]); //<file name>-copy.<extension>
         tempFile.createNewFile();
 
         File newestFile = AlixFileManager.writeJarCompiledFileIntoDest(tempFile, name);//temp file is the exact same thing as the 'newest file'

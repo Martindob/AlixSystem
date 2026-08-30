@@ -13,6 +13,10 @@ import ua.nanit.limbo.protocol.registry.Version;
 public final class PacketPlayOutMessage implements PacketOut {
 
     private String message;
+    //Set instead of 'message' when the caller needs rich formatting the legacy '&'/'§'-coded string format
+    //can't express, e.g. a clickable link (see LoginState#sendTermsPrompt()) - takes priority over 'message'
+    //in encode() when present.
+    private Component component;
 
     public PacketPlayOutMessage() {
     }
@@ -25,8 +29,21 @@ public final class PacketPlayOutMessage implements PacketOut {
         return new PacketPlayOutMessage().setMessage(AlixFormatter.translateColors(message));
     }
 
+    /**
+     * Like {@link #withMessage(String)}, but sends a pre-built Adventure Component directly, for anything
+     * the legacy string format can't express on its own (e.g. a click/hover event on part of the message).
+     */
+    public static PacketPlayOutMessage withComponent(Component component) {
+        return new PacketPlayOutMessage().setComponent(component);
+    }
+
     public PacketPlayOutMessage setMessage(String message) {
         this.message = message;
+        return this;
+    }
+
+    public PacketPlayOutMessage setComponent(Component component) {
+        this.component = component;
         return this;
     }
 
@@ -38,7 +55,9 @@ public final class PacketPlayOutMessage implements PacketOut {
     @Override
     public void encode(ByteMessage msg, Version version) {
         var retrooperVersion = version.getRetrooperVersion();
-        var wrapper = MessageWrapper.createWrapper(this.message, false, retrooperVersion);
+        var wrapper = this.component != null
+                ? MessageWrapper.createWrapper(this.component, false, retrooperVersion)
+                : MessageWrapper.createWrapper(this.message, false, retrooperVersion);
         WrapperUtils.writeNoID(wrapper, msg.getBuf(), retrooperVersion);
     }
 }

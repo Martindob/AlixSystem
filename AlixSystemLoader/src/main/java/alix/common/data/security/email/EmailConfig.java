@@ -31,6 +31,11 @@ public final class EmailConfig {
         this.webVerificationPort = config.getInt("web-verification-port", 8091);
         this.webVerificationPublicUrl = config.getString("web-verification-public-url", "");
         this.webVerificationTokenExpiryMinutes = config.getInt("web-verification-token-expiry-minutes", 30);
+
+        //Create the "email-templates" (+ "images") folder right away rather than only as a side effect of
+        //actually sending a custom-templated email - see EmailTemplateLoader#ensureFoldersExist() for why
+        //that lazy behavior meant the folder could simply never appear for an operator.
+        EmailTemplateLoader.ensureFoldersExist();
     }
 
     public static void init() {
