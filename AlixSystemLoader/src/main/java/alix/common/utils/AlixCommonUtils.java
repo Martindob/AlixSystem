@@ -102,7 +102,7 @@ public final class AlixCommonUtils {
         StringBuilder sb = new StringBuilder();
         String s = Integer.toString(i);
 
-        int toEat = i < 0 ? 4 : 3;
+        int toEat = 3;//i < 0 ? 4 :
         for (int j = s.length() - 1; j >= 0; j--) {
             char c = s.charAt(j);
             if (toEat-- == 0) {
@@ -111,7 +111,7 @@ public final class AlixCommonUtils {
             }
             sb.append(c);
         }
-        return sb.toString();
+        return sb.reverse().toString();
     }
 
     public static Integer parseIntOrNull(String s) {

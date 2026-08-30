@@ -36,6 +36,10 @@ public final class DatabaseConfigInstance {
         return config.getBoolean(this.correctPath(path));
     }
 
+    public String getString(String path) {
+        return config.getString(this.correctPath(path));
+    }
+
     public String getString(String path, String def) {
         return config.getString(this.correctPath(path), def);
     }

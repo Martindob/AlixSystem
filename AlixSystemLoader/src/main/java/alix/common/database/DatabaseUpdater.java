@@ -10,12 +10,14 @@ import alix.common.data.security.password.Password;
 import alix.common.database.connect.DatabaseType;
 import alix.common.database.file.DatabaseConfig;
 import alix.common.utils.config.ConfigParams;
+import alix.common.utils.other.keys.secret.MapSecretKey;
 
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public interface DatabaseUpdater {
 
@@ -35,6 +37,8 @@ public interface DatabaseUpdater {
     }
 
     CompletableFuture<Void> loadAllUsers(Map<String, PersistentUserData> map);
+
+    CompletableFuture<Void> loadAllTokens(Map<MapSecretKey, String> map);
 
     void connect();
 
@@ -56,7 +60,7 @@ public interface DatabaseUpdater {
 
     void saveUserToken(Identity identity, String token);
 
-    PersistentUserData loadUser(String name);
+    void loadUser(String name, Consumer<PersistentUserData> consumer);
 
     void updateAuthSettingsByName(String name, AuthSetting authSettings);
 

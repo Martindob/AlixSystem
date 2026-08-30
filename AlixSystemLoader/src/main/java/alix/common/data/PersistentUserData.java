@@ -3,7 +3,6 @@ package alix.common.data;
 import alix.api.user.data.AlixUserData;
 import alix.api.user.data.PremiumStatus;
 import alix.common.AlixCommonMain;
-import alix.common.antibot.captcha.secrets.files.UserTokensFileManager;
 import alix.common.antibot.ip.IPUtils;
 import alix.common.connection.filters.GeoIPTracker;
 import alix.common.data.file.AllowListFileManager;
@@ -19,7 +18,6 @@ import alix.common.data.settings.Setting;
 import alix.common.database.DatabaseUpdater;
 import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.file.SaveUtils;
-import alix.common.utils.other.keys.secret.MapSecretKey;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import ua.nanit.limbo.util.UUIDUtil;
@@ -48,8 +46,6 @@ public final class PersistentUserData implements AlixUserData {
     private volatile long mutedUntil, lastSuccessfulLogin;
     private final Identity identity;
     private volatile Email email;
-
-    //public volatile boolean isDirty;
 
     //name | password1 ; password2 | ip | homes | mutedUntil | login type1 ; login type2 | login settings | lastSuccessfulLogin | premium data
     //createdAt | email | identity
@@ -130,7 +126,7 @@ public final class PersistentUserData implements AlixUserData {
 
     void readEmail(String data) {
         try {
-            this.email = Email.readFromSaved(data, this.tokenKey());
+            this.email = Email.readFromSaved(data, this.getToken());
         } catch (Exception e) {
             AlixCommonMain.logWarning("Failed to read encrypted email: " + e.getMessage() + ". Was the 'user-tokens' file tampered with or deleted?");
         }
@@ -138,7 +134,7 @@ public final class PersistentUserData implements AlixUserData {
 
     public boolean setEmail(String email) {
         try {
-            this.email = Email.fromEmail(email, this.tokenKey());
+            this.email = Email.fromEmail(email, this.getToken());
             database.updateEmailByName(this.name, this.emailSavable());
             return true;
         } catch (Exception e) {
@@ -166,16 +162,8 @@ public final class PersistentUserData implements AlixUserData {
         );
     }
 
-    /*public void markDirty() {
-        this.isDirty = true;
-    }*/
-
-    public MapSecretKey<UUID> tokenKey() {
-        return MapSecretKey.fromName(this.identity.identity());
-    }
-
     public String getToken() {
-        return UserTokensFileManager.getTokenOrSupply(this.tokenKey());
+        return this.identity.getToken();
     }
 
     public void saveToDatabase() {
@@ -183,9 +171,6 @@ public final class PersistentUserData implements AlixUserData {
         database.saveUserToken(this.identity, this.getToken());
 
         AlixCommonMain.logInfo("Saving user " + this.name + " into the database");
-        /*database.insertUser(this.name, this.uuid, this.createdAt, this.getPassword());
-
-        database.setPremiumData(this.name, this.premiumData);*/
     }
 
     private UUID _uuid() {

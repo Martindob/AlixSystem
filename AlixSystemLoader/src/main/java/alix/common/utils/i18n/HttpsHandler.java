@@ -22,11 +22,11 @@ public final class HttpsHandler {
     }
 
     public static JsonElement readURL(String urlLink) throws IOException {
-        HttpsURLConnection connection = null;
+        HttpURLConnection connection = null;
         try {
             JsonElement out;
             URL url = new URL(urlLink);
-            connection = (HttpsURLConnection) url.openConnection();
+            connection = (HttpURLConnection) url.openConnection();
             connection.setConnectTimeout(5000);
             connection.setReadTimeout(5000);
             if (connection.getResponseCode() == 200) {//HttpsURLConnection.HTTP_OK

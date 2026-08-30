@@ -23,3 +23,13 @@ host: smtp.gmail.com
 # Usually either 587 (TLS) or 465 (SSL)
 #Can also be set custom (will have SSL enabled)
 port: 587
+
+#------------------------------------------------#
+#                USER EXPERIENCE                 #
+#------------------------------------------------#
+
+
+# Defines how many attempts does the user get during account recovery when entering the account's email, before being kicked out
+max-email-attempts: 5
+# Defines how many attempts does the user get when entering the recovery code, before being kicked out
+max-code-attempts: 3

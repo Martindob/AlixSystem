@@ -8,17 +8,23 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import shadow.systems.gui.AbstractAlixGUI;
 import shadow.systems.gui.AlixGUI;
+import shadow.utils.main.AlixUtils;
 
 public final class GUIExecutors implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)//can be
     public void onInvClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player)) return;
+        if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        AbstractAlixGUI gui = AlixGUI.MAP.get(event.getWhoClicked().getUniqueId());
+        AbstractAlixGUI gui = AlixGUI.MAP.get(player.getUniqueId());
         if (gui != null) {
             event.setCancelled(true);//have this be set first, in case an error occurs in the latter method
-            gui.onClick(event);
+            try {
+                gui.onClick(event);
+            } catch (Exception e) {
+                gui.getGUI().close();
+                AlixUtils.sendMessage(player, "&cSomething went wrong with the GUI!");
+            }
         }
     }
 

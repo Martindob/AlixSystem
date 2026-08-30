@@ -23,21 +23,6 @@ import static ua.nanit.limbo.protocol.snapshot.PacketSnapshots.TELEPORT_Y;
 final class CaptchaStateImpl {
 
     private static final PacketSnapshot TIMED_OUT = PacketPlayOutDisconnect.error("Timed out");
-    /*
-    private static final PacketSnapshot INVALID_ID = PacketPlayOutDisconnect.error("Invalid id");
-    private static final PacketSnapshot INVALID_PONG_ID = PacketPlayOutDisconnect.error("Invalid pong id");
-    private static final PacketSnapshot INVALID_GROUND = PacketPlayOutDisconnect.error("Invalid ground");
-    private static final PacketSnapshot NO_PONG = PacketPlayOutDisconnect.error("No pong");
-    private static final PacketSnapshot NO_KEEP_ALIVE = PacketPlayOutDisconnect.error("No keep alive");
-    private static final PacketSnapshot INVALID_XZ = PacketPlayOutDisconnect.error("Invalid XZ");
-    private static final PacketSnapshot INVALID_Y = PacketPlayOutDisconnect.error("Invalid Y");
-    private static final PacketSnapshot INVALID_Y_COL = PacketPlayOutDisconnect.error("Invalid Y Col");
-    private static final PacketSnapshot INVALID_DELTA_Y = PacketPlayOutDisconnect.error("Invalid Delta Y");
-    private static final PacketSnapshot INVALID_POS_CHANGE = PacketPlayOutDisconnect.error("Invalid Pos Change");
-    private static final PacketSnapshot INVALID_MOVE = PacketPlayOutDisconnect.error("Invalid Move");
-    //private static final PacketSnapshot INVALID_TRANSACTION = PacketPlayOutDisconnect.error("Invalid Transaction");
-    private static final PacketSnapshot INVALID_HELD = PacketPlayOutDisconnect.error("Invalid Held");
-    private static final PacketSnapshot INVALID_HAND = PacketPlayOutDisconnect.error("Invalid Hand");*/
 
     private final ClientConnection connection;
     private final PacketDuplexHandler duplexHandler;

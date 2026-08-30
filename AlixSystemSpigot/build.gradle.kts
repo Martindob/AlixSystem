@@ -3,7 +3,7 @@ import org.gradle.kotlin.dsl.implementation
 plugins {//java-library
     id("java")
     id("java-library")
-    id("com.gradleup.shadow") version "9.3.0"
+    id("com.gradleup.shadow") version "9.6.1"
     id("de.eldoria.plugin-yml.bukkit") version "0.8.0"
     id("io.papermc.paperweight.userdev") version "2.0.0-beta.14"
     id("xyz.kyngs.mcupload.plugin").version("0.3.4")

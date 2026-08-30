@@ -3,7 +3,7 @@ import sun.jvmstat.monitor.MonitoredVmUtil.jvmArgs
 plugins {
     id("java")
     id("java-library")
-    id("com.gradleup.shadow") version "9.3.0"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 group = "AlixSystemLoader"
@@ -50,7 +50,7 @@ dependencies {
 
     implementation("org.ow2.asm:asm:9.7")
     implementation("org.ow2.asm:asm-tree:9.7")
-    implementation("net.bytebuddy:byte-buddy-agent:1.14.18")
+    implementation("net.bytebuddy:byte-buddy-agent:1.18.11")
     implementation("org.roaringbitmap:RoaringBitmap:1.6.9")
 
     compileOnlyApi("org.geysermc.geyser:api:2.9.0-SNAPSHOT")
@@ -75,7 +75,7 @@ dependencies {
 
     compileOnly("io.papermc.paper:paper-api:1.20.2-R0.1-SNAPSHOT")
 
-    compileOnly("net.md-5:bungeecord-api:1.19-R0.1-SNAPSHOT")
+    //compileOnly("net.md-5:bungeecord-api:1.19-R0.1-SNAPSHOT")
 
     compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
     annotationProcessor("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")

@@ -50,13 +50,15 @@ public final class PacketEmptyChunkData implements PacketOut {
         if (version.moreOrEqual(Version.V1_14)) {
             if (version.moreOrEqual(Version.V1_21_5)) {
                 // In 1.21.5. They changed to List<EnumMap<Heightmap.Type, long[]>>
-                msg.writeVarInt(1); // List size
+                //Do we even need to write any heightmaps?
+                msg.writeVarInt(0); // List size
+                /*msg.writeVarInt(1); // List size
                 msg.writeVarInt(4); // Ordinal of MOTION_BLOCKING
                 // Write long array
                 msg.writeVarInt(37);
                 for (int i = 0; i < 37; i++) {
                     msg.writeLong(0);
-                }
+                }*/
             } else { // Nbt for older version
                 final long[] motionBlockingData = new long[version.less(Version.V1_18) ? 36 : 37];
                 final CompoundBinaryTag motionBlockingTag = CompoundBinaryTag.builder()

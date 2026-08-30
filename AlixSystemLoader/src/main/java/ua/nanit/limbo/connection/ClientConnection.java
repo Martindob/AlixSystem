@@ -335,7 +335,8 @@ public final class ClientConnection {
 
             if (!this.duplexHandler.isGeyser) {
                 //Why do 1.8 clients duplicate this singular block onto the neighbouring, not sent chunks?
-                writePacket(BlockPackets.DECOY);//sent before the chunk - should be ignored by the client
+                if (this.getVerifyState().isCaptchaState())
+                    writePacket(BlockPackets.DECOY);//sent before the chunk - should be ignored by the client
 
                 writePackets(PacketSnapshots.PACKETS_EMPTY_CHUNKS);
 

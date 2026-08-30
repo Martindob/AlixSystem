@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class TelemetryProfilerImpl implements AbstractTelemetryProfiler {
 
     static final TelemetryProfilerImpl PROFILER;//new TelemetryProfilerImpl();
-    static final boolean NO_DEBUG = true;
+    private static final boolean NO_DEBUG = true;
 
     static {
         boolean enable = NanoLimbo.INTEGRATION.isEpoll() && !NanoLimbo.INTEGRATION.isProxyProtocol();
@@ -36,6 +36,8 @@ public final class TelemetryProfilerImpl implements AbstractTelemetryProfiler {
         this.writer = DebugWriter.newImpl(NO_DEBUG);
     }
 
+    public static boolean SAVE_SYN_ENABLED;
+
     @Override
     public void enableSynSaving(int serverFd) {
         AlixCommonMain.logInfo("Enabling SynSaving for serverFd " + serverFd + "...");
@@ -43,8 +45,10 @@ public final class TelemetryProfilerImpl implements AbstractTelemetryProfiler {
         int code = SYN_OPT.enableSynSaving0(serverFd);
         if (code != 0)
             AlixCommonMain.logInfo("Failed to set TCP_SAVE_SYN. Error code: " + code);
-        else
+        else {
             AlixCommonMain.logInfo("Successfully set TCP_SAVE_SYN.");
+            SAVE_SYN_ENABLED = true;
+        }
     }
 
     @Override
@@ -78,7 +82,7 @@ public final class TelemetryProfilerImpl implements AbstractTelemetryProfiler {
 
     @SneakyThrows
     private String addr(byte[] addr) {
-        if (NO_DEBUG)
+        if (NO_DEBUG || addr == null)
             return null;
 
         switch (addr[0]) {

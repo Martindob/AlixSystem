@@ -1,5 +1,6 @@
 package ua.nanit.limbo.connection.login.gui;
 
+import alix.common.data.PersistentUserData;
 import alix.common.utils.other.keys.secret.MapSecretKey;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import ua.nanit.limbo.connection.ClientConnection;
@@ -36,8 +37,8 @@ public final class LimboAuthBuilder extends AbstractAuthBuilder implements Limbo
     private final ClientConnection connection;
     private final PacketDuplexHandler duplexHandler;
 
-    public LimboAuthBuilder(ClientConnection connection, MapSecretKey<UUID> secretKey, Consumer<Boolean> onConfirm, boolean includeLeaveButton) {
-        super(secretKey, onConfirm, includeLeaveButton);
+    public LimboAuthBuilder(ClientConnection connection, PersistentUserData data, Consumer<Boolean> onConfirm, boolean includeLeaveButton) {
+        super(data, onConfirm, includeLeaveButton);
         this.connection = connection;
         this.duplexHandler = connection.getDuplexHandler();
         if (connection.getVerifyState() instanceof LoginState loginState && loginState.data != null && loginState.data.canUseEmailRecovery()) {

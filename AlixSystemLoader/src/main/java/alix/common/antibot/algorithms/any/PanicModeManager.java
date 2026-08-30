@@ -17,7 +17,7 @@ public final class PanicModeManager {
     public static boolean activate(String reason) {
         if (!PANIC_MODE.compareAndSet(false, true)) return false;
 
-        Log.warning(reason + " Activating panic mode! Only non-suspicious mapped IPs may connect!");
+        Log.warning(reason + " Activating panic mode! Only non-suspicious IPs may connect!");
 
         AlixScheduler.runLaterAsync(() -> {
             deactivate("10 minutes have passed!");
@@ -41,21 +41,6 @@ public final class PanicModeManager {
     }
 
     public static boolean isV4Blocked(int addr) {
-        if (!isActive()) return false;
-
-        /*Inet4Address obj;
-
-        if (UNSAFE) {
-            obj = INET4_CACHE.get();
-            IPUtils.override(obj, addr);
-        } else {
-            try {
-                obj = (Inet4Address) InetAddress.getByAddress(IPUtils.ipv4ByteArray(addr));
-            } catch (UnknownHostException e) {
-                throw new RuntimeException(e);
-            }
-        }*/
-
-        return !GeoIPTracker.isv4Mapped(addr);
+        return isActive() && !GeoIPTracker.isv4Mapped(addr);
     }
 }

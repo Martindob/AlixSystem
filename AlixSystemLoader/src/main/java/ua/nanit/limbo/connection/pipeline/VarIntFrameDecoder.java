@@ -228,7 +228,7 @@ public final class VarIntFrameDecoder extends ChannelInboundHandlerAdapter {
         }
 
         int len = readVarIntPacketLength(in);
-        //NettySafety.validateUserInputBufAlloc(len);
+        NettySafety.validateUserInputBufAlloc(len);
         //uhh, is it possible for this to be the result of fragmentation?
         //if (len < 0) throw NettySafety.INVALID_PACKET_LEN;
 

@@ -23,4 +23,8 @@ public final class EmailConfig {
 
     public static void init() {
     }
+
+    public static AlixYamlConfig getConfig() {
+        return INSTANCE.config;
+    }
 }

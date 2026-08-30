@@ -1,3 +1,4 @@
+/*
 package alix.loaders.bungee;
 
 import alix.common.AlixMain;
@@ -85,4 +86,4 @@ public final class BungeeAlixMain extends Plugin implements AlixLoggerProvider, 
         private ParamImpl() {
         }
     }
-}
+}*/

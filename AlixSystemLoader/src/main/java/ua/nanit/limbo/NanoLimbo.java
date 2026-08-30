@@ -24,19 +24,18 @@ public final class NanoLimbo {
 
     private static final SnapshotEncodeStrategy STRATEGY = SnapshotEncodeStrategy.RUNTIME_CACHE;
     //@DebugOnly
-    public static final boolean broadcastInvalidPacketFireWalls = false;
+    public static final boolean broadcastInvalidPacketFireWallStackTraces = false;
     public static final boolean suppressInvalidPackets = true;//of(true);
     public static final boolean debugCipher = false;//of(false);
-    //@DebugOnly
     public static final boolean debugPackets = of(false);
+    //@DebugOnly
+    public static final boolean debugPacketSizes = false;
     public static final boolean debugServerPackets = false;//of(false);
     public static final boolean debugRawEncodes = false;//of(false);
     public static final boolean debugBytes = false;//of(false);
     public static final boolean debugFrames = false;
     public static final boolean debugSnapshots = false;//of(false);
     public static final boolean usePacketSnapshots = STRATEGY != SnapshotEncodeStrategy.NO_CACHE;
-
-    public static final boolean cacheMotd = true;
     //@DebugOnly
     public static final boolean pregenerateSnapshots = STRATEGY == SnapshotEncodeStrategy.PREGENERATE;//true
     public static final boolean allowFreeMovement = false;

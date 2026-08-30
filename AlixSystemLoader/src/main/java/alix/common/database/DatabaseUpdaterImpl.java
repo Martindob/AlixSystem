@@ -20,10 +20,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static alix.common.database.QueryConstants.*;
-import static ua.nanit.limbo.util.UUIDUtil.getOfflineModeUuid;
 
 final class DatabaseUpdaterImpl implements DatabaseUpdater {
 
@@ -88,7 +87,7 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
 
     @Override
     public void saveUserToken(Identity identity, String token) {
-        UUID tokenUuid = getOfflineModeUuid(identity.identity());
+        UUID tokenUuid = identity.tokenKey().key();
         this.queryAsync(identity.identity(), connection -> {
             try (PreparedStatement ps = connection.prepareStatement(INSERT_TOKEN_SQL(this.getType()))) {
                 setUuid(ps, 1, tokenUuid);
@@ -117,21 +116,36 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
     }
 
     @Override
-    public PersistentUserData loadUser(String name) {
-        AtomicReference<PersistentUserData> result = new AtomicReference<>();
+    public CompletableFuture<Void> loadAllTokens(Map<MapSecretKey, String> map) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
 
+        this.query(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(LOAD_ALL_TOKENS);
+                 ResultSet rs = ps.executeQuery()) {
+
+                while (rs.next()) {
+                    var uuid = readUuid(rs, 1);
+                    var token = rs.getString(2);
+                    map.put(MapSecretKey.uuidKey(uuid), token);
+                }
+                future.complete(null);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public void loadUser(String name, Consumer<PersistentUserData> consumer) {
         this.query(connection -> {
             try (PreparedStatement ps = connection.prepareStatement(SELECT_USER_SQL)) {
                 ps.setString(1, name);
 
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next())
-                        result.set(readData(rs));
+                        consumer.accept(readData(rs));
                 }
             }
         });
-
-        return result.get();
     }
 
     private PersistentUserData readData(ResultSet rs) throws SQLException {
@@ -235,7 +249,7 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
         }
 
         try {
-            return Email.readFromSaved(saved, MapSecretKey.fromName(identity.identity()));
+            return Email.readFromSaved(saved, identity.getToken());
         } catch (Exception e) {
             AlixCommonMain.logWarning("Failed to load encrypted email for identity=" + identity.identity() + ": " + e.getMessage());
             return null;

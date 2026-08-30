@@ -5,6 +5,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.generator.ChunkGenerator;
+import org.jetbrains.annotations.NotNull;
 import shadow.utils.world.AlixWorld;
 
 import java.util.Random;
@@ -19,6 +20,11 @@ public final class AlixChunkGenerator extends ChunkGenerator {
     @Override
     public Location getFixedSpawnLocation(World world, Random random) {
         return AlixWorld.TELEPORT_LOCATION; //SpawnFileManager.file.getSpawn().getLocation();
+    }
+
+    @Override
+    public boolean canSpawn(@NotNull World world, int x, int z) {
+        return false;
     }
 
     private static ChunkData createEmptyChunkData(World world) {

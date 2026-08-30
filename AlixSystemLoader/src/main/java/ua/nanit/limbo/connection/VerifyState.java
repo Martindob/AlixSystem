@@ -2,6 +2,7 @@ package ua.nanit.limbo.connection;
 
 import alix.common.data.PersistentUserData;
 import alix.common.utils.floodgate.GeyserUtil;
+import ua.nanit.limbo.connection.captcha.CaptchaState;
 import ua.nanit.limbo.connection.login.LoginState;
 import ua.nanit.limbo.protocol.packets.play.animation.PacketPlayInAnimation;
 import ua.nanit.limbo.protocol.packets.play.batch.PacketPlayInChunkBatchAck;
@@ -26,6 +27,10 @@ public interface VerifyState {
 
     default boolean isLoginState() {
         return this instanceof LoginState;
+    }
+
+    default boolean isCaptchaState() {
+        return this instanceof CaptchaState;
     }
 
     default void setData(PersistentUserData data, Consumer<ClientConnection> authAction, GeyserUtil geyserUti) {

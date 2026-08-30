@@ -66,7 +66,7 @@
         <module name="AlixSystem.AlixSystemLoader.main" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
+    <bytecodeTargetLevel target="21">
       <module name="AlixMaven" target="17" />
       <module name="AlixSpigot" target="17" />
       <module name="AlixSpigotAPI.AlixSystem.main" target="17" />

@@ -1,6 +1,6 @@
 package shadow.systems.login.auth;
 
-import alix.common.antibot.captcha.secrets.files.UserTokensFileManager;
+import alix.common.login.auth.GoogleAuthExplanation;
 import alix.common.login.auth.GoogleAuthUtils;
 import alix.common.messages.Messages;
 import alix.common.scheduler.AlixScheduler;
@@ -10,7 +10,6 @@ import io.netty.channel.Channel;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import alix.common.login.auth.GoogleAuthExplanation;
 import shadow.systems.netty.AlixChannelHandler;
 import shadow.utils.main.file.managers.OriginalLocationsManager;
 import shadow.utils.misc.captcha.ImageRenderer;
@@ -64,7 +63,7 @@ public final class GoogleAuth {
     public static void showQRCode(VerifiedUser user, Player player) {
         if (user == null) return;
 
-        String token = UserTokensFileManager.getTokenOrSupply(user.getData().tokenKey());
+        var token = user.getData().getToken();
 
         try {
             String joinedWithIp = AlixChannelHandler.getJoinedWithIP(user.getChannel());

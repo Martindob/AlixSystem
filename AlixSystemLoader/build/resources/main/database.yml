@@ -24,9 +24,17 @@ migrate-max-lifetime: 60
 #                 EXTERNAL SYNC                  #
 #------------------------------------------------#
 
-#Defines whether alix should store some of its users.yml data into the database, whose connection parameters are given below
+#Defines whether alix should store its data into some database, the connection parameters of which are defined below
 # A copy of the data will still be kept locally
 external-sync: false
+# Defines how the caching strategy used in order to database requests
+# preload - Requests all data, once, at start-up (best option if you don't expect changes to the db from other sources)
+# on_connection_if_exists - A database request will be sent each time an already existing user connects to the server (useful in case of external changes,
+#  that apply to already existing players)
+# on_connection - A database request will be sent each time each time a user connects to the server (useful in case of external changes,
+#  including account creation - Beware: This allows for a possible abuse of overloading database queries in case of attacks.
+#  I'll try to stop this in the future, but know that for now this opens up a vulnerability)
+caching-strategy: preload
 #Defines the database connector type to use. Available:
 # MySQL - supports some MySQL-like databases (for example MariaDB)
 # PostgreSQL - uses Postgres
@@ -35,7 +43,7 @@ database-type: PostgreSQL
 # The user/database name
 user: postgres
 
-#The user of this database (For instance, "root")
+#The user of this database (for instance, "root")
 username:
 #Connection parameters
 password:

@@ -2,6 +2,7 @@ package alix.common.utils.file;
 
 
 import alix.common.AlixCommonMain;
+import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.other.throwable.AlixError;
 import alix.common.utils.other.throwable.AlixException;
 import lombok.SneakyThrows;
@@ -13,13 +14,12 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+
+import static java.nio.file.attribute.PosixFilePermission.*;
 
 public abstract class AlixFileManager {
 
@@ -30,8 +30,16 @@ public abstract class AlixFileManager {
         var path = AlixCommonMain.MAIN_CLASS_INSTANCE.getDataFolderPath().toAbsolutePath();
         INTERNAL_FOLDER = new File(path + File.separator + "internal");
         INTERNAL_FOLDER.mkdir();
+
         SECRETS_FOLDER = new File(path + File.separator + "secrets");
         SECRETS_FOLDER.mkdir();
+
+        try {
+            Files.setPosixFilePermissions(SECRETS_FOLDER.toPath(), EnumSet.of(OWNER_EXECUTE, OWNER_WRITE, OWNER_READ));
+        } catch (Throwable e) {
+            //just swallow
+            //AlixCommonMain.logWarning("Could not set POSIX file perms: " + e.getMessage());
+        }
     }
 
     protected AlixFileManager(File file) {//existing file
@@ -346,7 +354,7 @@ public abstract class AlixFileManager {
         try {
             this.load();
         } catch (IOException e) {
-            e.printStackTrace();
+            AlixCommonUtils.logException(e);
         }
     }
 

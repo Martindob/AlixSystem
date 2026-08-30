@@ -43,7 +43,7 @@ public final class Messages {
     private static String get0(String s) {
         String m = file.getMap().get(s);
         if (m == null)
-            AlixCommonMain.logWarning("Message '" + s + "' was not found in the " + AlixCommonMain.MAIN_CLASS_INSTANCE.getEngineParams().messagesFileName() + " file! Report this immediately!");
+            AlixCommonMain.logWarning("Message '" + s + "' was not found in the " + AlixCommonMain.MAIN_CLASS_INSTANCE.getEngineParams().messagesFileName() + " file! This is likely not good!");
         return m != null ? AlixFormatter.translateColors(m) : "§c<Message not found: '" + s + "'>!";
     }
 

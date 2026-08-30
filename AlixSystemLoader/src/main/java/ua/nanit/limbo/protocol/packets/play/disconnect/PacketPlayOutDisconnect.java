@@ -21,6 +21,10 @@ public final class PacketPlayOutDisconnect extends OutRetrooperPacket<WrapperPla
     }
 
     public static PacketSnapshot snapshot(String reason) {
-        return new PacketPlayOutDisconnect().setReason(reason).toSnapshot();
+        return of(reason).toSnapshot();
+    }
+
+    public static PacketPlayOutDisconnect of(String reason) {
+        return new PacketPlayOutDisconnect().setReason(reason);
     }
 }

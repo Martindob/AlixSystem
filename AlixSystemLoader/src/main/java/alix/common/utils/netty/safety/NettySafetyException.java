@@ -10,12 +10,12 @@ public final class NettySafetyException extends RuntimeException {
 
     @Override
     public Throwable fillInStackTrace() {//traceless
-        return NanoLimbo.broadcastInvalidPacketFireWalls ? super.fillInStackTrace() : this;
+        return NanoLimbo.broadcastInvalidPacketFireWallStackTraces ? super.fillInStackTrace() : this;
     }
 
     @Override
     public Throwable getCause() {
-        return NanoLimbo.broadcastInvalidPacketFireWalls ? super.getCause() : null;
+        return NanoLimbo.broadcastInvalidPacketFireWallStackTraces ? super.getCause() : null;
     }
 
     static NettySafetyException of(String reason) {

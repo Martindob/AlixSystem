@@ -3,7 +3,7 @@ package shadow.utils.world.generator;
 import org.bukkit.*;
 import org.jetbrains.annotations.Nullable;
 import shadow.Main;
-import shadow.systems.executors.captcha.CaptchaRespawnExecutors;
+import shadow.systems.executors.captcha.AlixWorldExecutors;
 import shadow.utils.world.generator.chunk.AlixChunkGenerator;
 
 import static shadow.utils.misc.ReflectionUtils.getMethodOrNull;
@@ -43,13 +43,13 @@ public final class AlixWorldGenerator extends WorldCreator {
         world.setTicksPerWaterAmbientSpawns(0);
         world.setTicksPerMonsterSpawns(0);
         world.setTicksPerWaterUndergroundCreatureSpawns(0);
+        world.getWorldBorder().setSize(1200);
 
         world.setPVP(false);
         world.setAutoSave(false);
         //world.getViewDistance()
         world.setSpawnFlags(false, false);
         world.setDifficulty(Difficulty.EASY);
-
 
         if (invokeIfPresent(getMethodOrNull(World.class, "setViewDistance", int.class), world, 2)) {
             Main.logInfo("Optimizing chunk rendering in the verification world thanks to the Paper environment");
@@ -114,10 +114,10 @@ public final class AlixWorldGenerator extends WorldCreator {
     private static void initCorrectRespawnModern(World world) {
         GameRule rule = GameRule.getByName("doImmediateRespawn");
         if (rule != null) world.setGameRule((GameRule<Boolean>) rule, false);
-        Main.pm.registerEvents(new CaptchaRespawnExecutors(rule == null), Main.plugin);
+        Main.pm.registerEvents(new AlixWorldExecutors(rule == null), Main.plugin);
     }
 
     private static void initCorrectRespawnOld() {
-        Main.pm.registerEvents(new CaptchaRespawnExecutors(true), Main.plugin);
+        Main.pm.registerEvents(new AlixWorldExecutors(true), Main.plugin);
     }
 }

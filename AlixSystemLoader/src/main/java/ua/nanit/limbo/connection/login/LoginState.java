@@ -6,6 +6,7 @@ import alix.common.data.LoginType;
 import alix.common.data.PersistentUserData;
 import alix.common.data.premium.PremiumDataCache;
 import alix.common.data.premium.VerifiedCache;
+import alix.common.data.security.email.EmailConfig;
 import alix.common.data.security.email.EmailHandler;
 import alix.common.data.security.email.recovery.EmailRecovery;
 import alix.common.data.security.password.Password;
@@ -238,7 +239,7 @@ public final class LoginState implements VerifyState {
     }
 
     private LimboGUI newBuilder2FA() {
-        return new LimboAuthBuilder(this.connection, this.data.tokenKey(), correct -> {
+        return new LimboAuthBuilder(this.connection, this.data, correct -> {
             if (correct) {
                 this.logIn();
                 return;
@@ -337,6 +338,8 @@ public final class LoginState implements VerifyState {
             this.writeCommands();
             this.connection.writeTitle(this.isRegistered ? LOGIN_TITLE : REGISTER_TITLE);
         }
+        //DO NOT SEND THIS, BREAKS GUIS
+        //this.write(Entities.SAME_ID);
 
         if (this.gui != null) this.gui.show();
         else this.duplexHandler.flush();
@@ -361,6 +364,15 @@ public final class LoginState implements VerifyState {
         else this.handleRegisterCommand(args);
     }
 
+    private static final int
+            MAX_EMAIL_ATTEMPTS = EmailConfig.getConfig().getInt("max-email-attempts"),
+            MAX_CODE_ATTEMPTS = EmailConfig.getConfig().getInt("max-code-attempts");
+    private int invalidEmailAttempts, invalidCodeAttempts;
+
+    public void onInvalidCode() {
+
+    }
+
     private void handleRecoveryCommand(String[] args) {
         if (args.length != 1) {
             this.sendMessage(Messages.get("email-recovery-invalid-email"));
@@ -368,9 +380,17 @@ public final class LoginState implements VerifyState {
         }
 
         String input = args[0].trim();
-        if (EmailHandler.verifyRecoveryCode(this.connection, input)) {
-            this.sendMessage(Messages.getWithPrefix("email-recovery-success"));
-            this.tryLogIn();
+        if (EmailHandler.hasSession(this.connection)) {
+            if (EmailHandler.verifyRecoveryCode(this.connection, input)) {
+                this.sendMessage(Messages.getWithPrefix("email-recovery-success"));
+                this.tryLogIn();
+                return;
+            }
+            if (++this.invalidCodeAttempts == MAX_CODE_ATTEMPTS) {
+                this.disconnect(PacketPlayOutDisconnect.of(Messages.getWithPrefix("email-recovery-invalid-email")));
+                return;
+            }
+            this.sendMessage(Messages.getWithPrefix("email-recovery-invalid-email"));
             return;
         }
 
@@ -384,6 +404,10 @@ public final class LoginState implements VerifyState {
             EmailHandler.sendRecoveryMail(this.connection, input, (conn, msg) -> this.sendMessage(msg));
             this.openRecoveryCodeGui();
         } else {
+            if (++this.invalidEmailAttempts == MAX_EMAIL_ATTEMPTS) {
+                this.disconnect(PacketPlayOutDisconnect.of(Messages.getWithPrefix("email-recovery-invalid-email")));
+                return;
+            }
             this.sendMessage(Messages.getWithPrefix("email-recovery-invalid-email"));
         }
     }

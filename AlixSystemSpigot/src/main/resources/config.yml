@@ -128,7 +128,7 @@ max-auth-app-attempts: 3
 # 4 - Uses SHA-256, always saved into a 64 character-long hex
 # 5 - Uses SHA-512, always saved into a 64 character-long hex
 # 6 - Uses BCrypt, Version 2A
-password-hash-type: 3
+password-hash-type: 4
 #Defines whether a user should be shown the "Login automatically?" gui, with the ability to configure their ip autologin preference, right after registering
 auto-ip-autologin-ask: true
 #Defines whether, if the joining player has the nickname of a premium account, it should be required of him to also be the owner of that account - forbid server

@@ -80,10 +80,14 @@ public final class EmailHandler {
         });
     }
 
+    public static <T> boolean hasSession(T caller) {
+        return VERIFY_CODES.containsKey(caller);
+    }
+
     public static <T> boolean verifyRecoveryCode(T caller, String code) {
         var session = VERIFY_CODES.get(caller);
         if (session == null) return false;
-        if (code != null && code.trim().equals(session.code())) {
+        if (code.trim().equals(session.code())) {
             VERIFY_CODES.remove(caller);
             return true;
         }
@@ -131,7 +135,7 @@ public final class EmailHandler {
         return future;
     }
 
-    static void sendEmail0(String email, String subject, String content) throws EmailException {
+    private static void sendEmail0(String email, String subject, String content) throws EmailException {
         var config = EmailConfig.INSTANCE;
         var port = config.port;
 
@@ -173,7 +177,7 @@ public final class EmailHandler {
     }
 
     @SneakyThrows
-    static void init() {
+    private static void init() {
         var lookup = MethodHandles.lookup();
         //I hate this
         lookup.ensureInitialized(IMAPSSLProvider.class);

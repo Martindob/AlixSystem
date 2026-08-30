@@ -10,6 +10,8 @@ import alix.common.data.file.UserFileManager;
 import alix.common.data.premium.PremiumData;
 import alix.common.data.premium.PremiumStatus;
 import alix.common.data.premium.name.PremiumNameManager;
+import alix.common.database.DatabaseCachingStrategy;
+import alix.common.database.DatabaseUpdater;
 import alix.common.login.premium.PremiumSetting;
 import alix.common.login.premium.PremiumUtils;
 import alix.common.messages.Messages;
@@ -108,9 +110,22 @@ public abstract class LimboIntegration<T extends ClientConnection> {
     //Packets
     public abstract void onHandshake(T connection, PacketHandshake handshake);
 
+    private static final DatabaseUpdater database = DatabaseUpdater.INSTANCE;
+
     public void onLoginStart(T connection, PacketLoginStart packet, Consumer<PreLoginInfo> consumer) {
         String nameSent = packet.getUsername();
-        PersistentUserData data = UserFileManager.get(nameSent);
+        var channel = connection.getChannel();
+        if (DatabaseCachingStrategy.STRATEGY.requestData(nameSent)) {
+            database.loadUser(nameSent, data ->
+                    channel.eventLoop().execute(() ->
+                            this.onLoginStart0(connection, data, packet, consumer)));
+            return;
+        }
+        this.onLoginStart0(connection, UserFileManager.get(nameSent), packet, consumer);
+    }
+
+    private void onLoginStart0(T connection, PersistentUserData data, PacketLoginStart packet, Consumer<PreLoginInfo> consumer) {
+        String nameSent = packet.getUsername();
         UUID uuid = packet.getUUID();
 
         //Premium handling
@@ -120,7 +135,7 @@ public abstract class LimboIntegration<T extends ClientConnection> {
 
         Consumer<PremiumData> premiumDataFuture = premiumData -> {
             boolean isPremium = premiumData.getStatus().isPremium();
-            this.onLoginStart0(connection, nameSent, packet, data, isPremium, consumer);
+            this.onLoginStart1(connection, nameSent, packet, data, isPremium, consumer);
         };
 
         if (data != null)
@@ -134,7 +149,7 @@ public abstract class LimboIntegration<T extends ClientConnection> {
         }
     }
 
-    private void onLoginStart0(T connection, String nameSent, PacketLoginStart packet, PersistentUserData data, boolean isPremium, Consumer<PreLoginInfo> consumer) {
+    private void onLoginStart1(T connection, String nameSent, PacketLoginStart packet, PersistentUserData data, boolean isPremium, Consumer<PreLoginInfo> consumer) {
         boolean shouldReEncodeName = false;
         boolean recode;
 

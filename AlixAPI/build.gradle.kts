@@ -1,7 +1,7 @@
 plugins {
     id("java")
     id("java-library")
-    id("com.gradleup.shadow") version "9.3.0"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 group = "AlixAPI"

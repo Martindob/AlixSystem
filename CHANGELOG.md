@@ -1,10 +1,10 @@
 Issues fix, stable version release
 
-Changes since 3.10.0 (DEV-2)
+* Changed default password-hash-type: 3 -> 4
+* Fixed alix_user_tokens still not being saved to the database
+* Added back packet length validation
+* Fixed one vpn check provider not working correctly
 
-* Fixed a nasty issue related to partial writes on congested networks
-* 'allow-case-sensitive-nicknames' is now false by default
-* Optimized v4 ip look-ups
-* Properly accounted for legacy ping
-* Fixed improper firewalls
-
+Spigot:
+* Try fix excessive chunk loading in the alix world
+* Fixed a possible unauthorized access vulnerability

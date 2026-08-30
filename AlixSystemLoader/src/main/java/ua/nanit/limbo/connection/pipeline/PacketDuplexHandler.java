@@ -163,7 +163,7 @@ public final class PacketDuplexHandler extends ChannelDuplexHandler {
 
             if (cause instanceof NettySafetyException || cause instanceof IndexOutOfBoundsException) {
                 this.connection.closeInvalidPacket();
-                if (NanoLimbo.broadcastInvalidPacketFireWalls) {
+                if (NanoLimbo.broadcastInvalidPacketFireWallStackTraces) {
                     cause.printStackTrace();
                 }
                 var addr = AlixCommonUtils.getAddress(ctx.channel());
@@ -367,6 +367,9 @@ public final class PacketDuplexHandler extends ChannelDuplexHandler {
 
         if (NanoLimbo.validateWrites && out.refCnt() == 0)
             Log.warning("cnt=" + out.refCnt());
+
+        if (NanoLimbo.debugPacketSizes)
+            Log.warning("OUT=" + clazz.getSimpleName() + " BYTES=" + out.readableBytes());
 
         PacketUtils.unsafeWrite(this.channel, out, promise);
         //this.channel.unsafe().write(out, promise);

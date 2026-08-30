@@ -15,7 +15,7 @@ public final class PacketUnloadChunk extends OutRetrooperPacket<WrapperPlayServe
     }
 
     public PacketUnloadChunk setZ(int z) {
-        this.wrapper().setChunkX(z);
+        this.wrapper().setChunkZ(z);
         return this;
     }
 }

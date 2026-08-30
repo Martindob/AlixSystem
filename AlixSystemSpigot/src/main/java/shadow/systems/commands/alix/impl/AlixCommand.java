@@ -1,11 +1,11 @@
 package shadow.systems.commands.alix.impl;
 
+import alix.common.commands.file.AlixCommandInfo;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.jetbrains.annotations.NotNull;
-import alix.common.commands.file.AlixCommandInfo;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +33,8 @@ public final class AlixCommand extends Command {
 
     @Override
     public boolean execute(@NotNull CommandSender sender, @NotNull String label, @NotNull String[] args) {
+        if (!this.testPermission(sender))
+            return false;
         return this.executor.onCommand(sender, this, label, args);
     }
 

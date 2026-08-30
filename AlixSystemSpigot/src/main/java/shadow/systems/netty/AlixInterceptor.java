@@ -118,10 +118,10 @@ public final class AlixInterceptor {
             Channel channel = (Channel) msg;
 
             //Main.debug("CHANNEL CONNECT=" + channel);
-            InetAddress address = AlixCommonUtils.getAddress(channel);
             AntiBotStatistics.INSTANCE.incrementJoins();
 
-            if (!PROXY_PROTOCOL && address != null) {
+            if (!PROXY_PROTOCOL) {
+                InetAddress address = AlixCommonUtils.getAddress(channel);
                 if (isNettyFireWall) {
                     if (FireWallManager.isBlocked0(address)) {
                         channel.unsafe().closeForcibly();

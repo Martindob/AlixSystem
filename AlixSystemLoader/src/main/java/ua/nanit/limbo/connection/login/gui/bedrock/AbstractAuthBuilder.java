@@ -1,6 +1,6 @@
 package ua.nanit.limbo.connection.login.gui.bedrock;
 
-import alix.common.antibot.captcha.secrets.files.UserTokensFileManager;
+import alix.common.data.PersistentUserData;
 import alix.common.environment.ServerEnvironment;
 import alix.common.login.auth.GoogleAuthUtils;
 import alix.common.login.skull.SkullTextureType;
@@ -9,7 +9,6 @@ import alix.common.messages.Messages;
 import alix.common.packets.inventory.AlixInventoryType;
 import alix.common.packets.inventory.InventoryWrapper;
 import alix.common.utils.formatter.AlixFormatter;
-import alix.common.utils.other.keys.secret.MapSecretKey;
 import alix.common.utils.other.throwable.AlixError;
 import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
 import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemLore;
@@ -286,10 +285,10 @@ public abstract class AbstractAuthBuilder {
         this.onRecover = onRecover;
     }
 
-    protected AbstractAuthBuilder(MapSecretKey<UUID> secretKey, Consumer<Boolean> onConfirm, boolean includeLeaveButton) {
+    protected AbstractAuthBuilder(PersistentUserData data, Consumer<Boolean> onConfirm, boolean includeLeaveButton) {
         this.includeLeaveButton = includeLeaveButton;
         this.onConfirm = onConfirm;
-        this.hexSecretKey = GoogleAuthUtils.getHexKey(UserTokensFileManager.getTokenOrSupply(secretKey));
+        this.hexSecretKey = GoogleAuthUtils.getHexKey(data.getToken());
         this.allItems = includeLeaveButton ? invItems : invItemsNoLeave;
     }
 

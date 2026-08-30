@@ -1,6 +1,5 @@
 package shadow.utils.objects.savable.data.gui.builders.auth;
 
-import alix.common.antibot.captcha.secrets.files.UserTokensFileManager;
 import alix.common.data.PersistentUserData;
 import alix.common.login.auth.GoogleAuthUtils;
 import alix.common.messages.Messages;
@@ -190,7 +189,7 @@ public abstract class VirtualAuthBuilder implements AlixJavaVerificationGui {
         this.user = user;
         this.onConfirm = onConfirm;
         this.gui = new CachingVirtualInventory(this.user.silentContext(), null, includeLeaveButton ? invItemsByteBuf : invItemsByteBufNoLeave, invOpenBuffer);
-        this.hexSecretKey = GoogleAuthUtils.getHexKey(UserTokensFileManager.getTokenOrSupply(data.tokenKey()));
+        this.hexSecretKey = GoogleAuthUtils.getHexKey(data.getToken());
         this.gui.setSpoofWithCached(true);
     }
 

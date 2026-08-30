@@ -272,6 +272,8 @@ interface QueryConstants {
             "INSERT INTO alix_user_tokens (uuid, token) VALUES (?, ?) " +
             "ON CONFLICT (uuid) DO NOTHING";
 
+    String LOAD_ALL_TOKENS = "SELECT * FROM alix_user_tokens";
+
     static String CREATE_TOKENS_SQL(DatabaseType type) {
         return switch (type) {
             case MYSQL -> CREATE_TOKENS_SQL_MYSQL;

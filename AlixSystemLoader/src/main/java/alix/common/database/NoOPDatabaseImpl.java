@@ -7,13 +7,21 @@ import alix.common.data.PersistentUserData;
 import alix.common.data.premium.PremiumData;
 import alix.common.data.security.password.Password;
 import alix.common.database.connect.DatabaseType;
+import alix.common.utils.other.keys.secret.MapSecretKey;
+import alix.common.utils.other.throwable.AlixError;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 final class NoOPDatabaseImpl implements DatabaseUpdater {
     @Override
     public CompletableFuture<Void> loadAllUsers(Map<String, PersistentUserData> map) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> loadAllTokens(Map<MapSecretKey, String> map) {
         return CompletableFuture.completedFuture(null);
     }
 
@@ -68,8 +76,8 @@ final class NoOPDatabaseImpl implements DatabaseUpdater {
     }
 
     @Override
-    public PersistentUserData loadUser(String name) {
-        return null;
+    public void loadUser(String name, Consumer<PersistentUserData> consumer) {
+        throw new AlixError("loadUser called on NOOP db impl");
     }
 
     @Override
