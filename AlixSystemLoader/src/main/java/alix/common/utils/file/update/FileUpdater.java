@@ -40,9 +40,25 @@ public final class FileUpdater {
 
                 //messages.properties
                 updateFile(params.messagesFileName(), params.messagesSeparator());
+
+                //gui-menus/*.yml - each menu's config lives as flat "items.<id>.<setting>"-style keys (see
+                //the files themselves), the exact same shape as config.yml's "key: value" + dash-list lines,
+                //so the same generic merge below is enough to add any new/changed keys a future plugin update
+                //introduces (new item, new setting on an existing item, etc.) while fully preserving everything
+                //the operator has already customized - matching how config.yml/email-config.yml/commands.txt
+                //already stay up to date across updates instead of only ever being copied once. A line removed
+                //from a future default (e.g. a deprecated item) is likewise dropped from the operator's file the
+                //same way an outdated config.yml parameter would be. This resolves the "how would GUI layout
+                //changes reach already-existing, user-customized gui-menus/*.yml files" question - previously
+                //these files were only ever copied once (on first creation) and never touched again afterward.
+                for (String menu : GUI_MENU_NAMES)
+                    updateFile("gui-menus/" + menu + ".yml", DEFAULT_SPLITERATOR, Validation.VALIDATE_TRIMMED_DASH_START);
                 break;
         }
     }
+
+    //Keep in sync with MenuRegistry's valid "[open-menu] <id>" ids
+    private static final String[] GUI_MENU_NAMES = {"account", "passwords", "login-settings", "google-auth", "ip-autologin"};
 
     /**
      * Updates the file - Adds the missing lines and removes the outdated ones, by comparing it to the file compiled with the plugin
@@ -261,6 +277,18 @@ public final class FileUpdater {
                 String newestLineStart = newestLine.split(splitWith)[0];
                 List<String> list = map.get(newestLineStart);
                 if (list != null) {
+                    //Remove the newest default's OWN dash-list entries that already follow this header before
+                    //splicing in the preserved existing ones below - previously these were never removed, so
+                    //the newest file's own list entries stayed right where they were (just shifted down by the
+                    //insertion), ending up duplicated (or, after further updates, triplicated etc.) alongside
+                    //the preserved ones on every single restart. This path was never actually exercised by
+                    //config.yml (it has no dash-lists at all), only newly exposed by routing gui-menus/*.yml
+                    //through this same merge mechanism - caught by actually restarting a real proxy against a
+                    //customized gui-menus file rather than assuming reusing this code was automatically safe.
+                    int removeFrom = i + 1;
+                    while (removeFrom < newestLines.size() && newestLines.get(removeFrom).trim().startsWith("-"))
+                        newestLines.remove(removeFrom);
+
                     newestLines.addAll(i + 1, list);//since 'i' is the index of the list header we have to add 1 to have the list's parameters added below it
                     i += list.size();//skip the indexes we know are the list parameters
                 }

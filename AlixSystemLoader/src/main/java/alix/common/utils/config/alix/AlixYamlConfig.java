@@ -23,6 +23,21 @@ public final class AlixYamlConfig {
         return new AlixYamlConfig(AlixFileManager.getOrCreatePluginFile(name, type));
     }
 
+    /**
+     * v1.5.2 ("/as reload"): re-reads every AlixYamlConfig-backed file (config.yml, database.yml,
+     * email-config.yml, gui-menus/*.yml, ...) currently loaded from disk, in place - see
+     * AlixYamlConfigFile#reload() for why a naive re-parse would have duplicated list-type keys.
+     * <p>
+     * Note this only refreshes what {@link #get}/{@link #getString}/{@link #getBoolean}/etc. return on
+     * their NEXT call - a value already copied out into a {@code final} field at startup (several
+     * settings classes do this, e.g. EmailConfig) won't change until the affected file is closed and
+     * reopened, i.e. a real restart. Call sites that read the config live, at the point of use, pick up
+     * the new value immediately.
+     */
+    public static void reloadAll() {
+        AlixYamlConfigFile.reloadAll();
+    }
+
     @NotNull
     public String get(String path, @NotNull String def) {
         String val = this.file.values.get(path);

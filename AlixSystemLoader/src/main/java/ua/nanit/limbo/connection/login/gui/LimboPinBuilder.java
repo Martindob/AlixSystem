@@ -51,9 +51,12 @@ public final class LimboPinBuilder implements LimboGUI {
     private static final ItemStack[] pinVerificationGuiItems = createPINVerificationItems();
 
     private static final PacketSnapshot invItemsPacket = new PacketPlayOutInventoryItems(pinVerificationGuiItems).toSnapshot();
+    //Were hardcoded English literals ("Register"/"Login"), same bug/fix as AnvilBuilderGoal's window titles -
+    //reusing the same "gui-title-login"/"gui-title-register" keys since it's the exact same displayed text,
+    //just for this PIN-based GUI instead of the anvil-based one.
     private static final PacketSnapshot
-            registerInvOpen = PacketPlayOutInventoryOpen.snapshot(AlixInventoryType.GENERIC_9X4, "Register"),
-            loginInvOpen = PacketPlayOutInventoryOpen.snapshot(AlixInventoryType.GENERIC_9X4, "Login");
+            registerInvOpen = PacketPlayOutInventoryOpen.snapshot(AlixInventoryType.GENERIC_9X4, Messages.get("gui-title-register")),
+            loginInvOpen = PacketPlayOutInventoryOpen.snapshot(AlixInventoryType.GENERIC_9X4, Messages.get("gui-title-login"));
 
 
     private final StringBuilder pin = new StringBuilder(4);

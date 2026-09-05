@@ -25,6 +25,19 @@ public final class MenuConfig {
         return CACHE.computeIfAbsent(name, MenuConfig::load);
     }
 
+    /**
+     * v1.5.2 ("/as reload"): drops every cached, already-parsed menu definition, so the next player to
+     * open ANY menu (account/passwords/login-settings/google-auth/ip-autologin) causes a fresh
+     * MenuConfig#load() - i.e. a fresh read of gui-menus/*.yml from disk, picking up whatever an admin
+     * just edited (title/background/item placement/actions/lore, including "@lang-key" references,
+     * which resolve against Messages' own already-live map - see AlixSystemCommand's "reload"
+     * subcommand). Menus already open in a player's inventory at the moment of reload are unaffected
+     * (they already have their packets built) - only the NEXT open uses the fresh definition.
+     */
+    public static void reloadAll() {
+        CACHE.clear();
+    }
+
     private final String name;
     private final String title;
     private final ItemStack backgroundItem;

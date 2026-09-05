@@ -25,6 +25,7 @@ import alix.common.scheduler.AlixScheduler;
 import alix.common.utils.AlixCommonUtils;
 import alix.velocity.Main;
 import alix.velocity.utils.AlixUtils;
+import alix.velocity.utils.file.FileManager;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
@@ -69,6 +70,31 @@ public final class AlixSystemCommand {
                     CommandSource sender = context.getSource();
                     sendMessage(sender, "All user data sync with the connected database has been initiated and should complete soon enough");
                     UserFileManager.saveLocalToDb();
+                    return SINGLE_SUCCESS;
+                })
+        );
+
+        // v1.5.2: re-reads config.yml/database.yml/gui-menus/*.yml/langs/commands.txt/allow-list.txt
+        // from disk without restarting the whole proxy - see FileManager#reloadFiles() for exactly what
+        // this does and does not cover (some settings, e.g. email-config.yml or command aliases
+        // themselves, genuinely still need a real restart - that's stated to the sender below too, so
+        // it's never a surprise).
+        root.then(BrigadierCommand.literalArgumentBuilder("reload")
+                .executes(context -> {
+                    CommandSource sender = context.getSource();
+                    long start = System.currentTimeMillis();
+
+                    try {
+                        FileManager.reloadFiles();
+                    } catch (Throwable e) {
+                        sendMessage(sender, "&cReload failed: " + e.getMessage() + " (see console for the full error)");
+                        e.printStackTrace();
+                        return 0;
+                    }
+
+                    long tookMs = System.currentTimeMillis() - start;
+                    sendMessage(sender, "&aAlixSystem config/langs/gui-menus/allow-list reloaded in " + tookMs + "ms. " +
+                            "&7Note: email-config.yml and command aliases still require a full proxy restart to take effect.");
                     return SINGLE_SUCCESS;
                 })
         );
@@ -545,11 +571,15 @@ public final class AlixSystemCommand {
         });
 
         // Subcommand: lists every command (both admin and player-facing) along with a short description of what it does.
-        // Explicitly overrides the root's "alixsystem.admin" requirement (with "source -> true") since, unlike every
-        // other "/as ..." subcommand, this one is meant to be usable by every player, not just admins - without this
-        // override it inherits the root's requirement and is invisible/unusable for anyone without that permission.
+        // Deliberately left gated by the root's "alixsystem.admin" requirement, same as every other "/as ..."
+        // subcommand - "/as" is an admin command tree, and admin subcommand names/usage shouldn't be exposed
+        // to (or runnable by) non-admins just because this particular one happens to also list player-facing
+        // commands for the admin's own reference. A previous revision exempted this subcommand from the
+        // permission check so regular players could use it too, which was the wrong fix: it let any player
+        // run an "/as ..." subcommand and see the full admin command list. Players who just want to see their
+        // own available commands should use the separate, genuinely non-admin "/alixhelp" command instead
+        // (see CommandManager#register_Help()), which only lists sendPlayerCommandsList()'s content.
         root.then(BrigadierCommand.literalArgumentBuilder("commands")
-                .requires(source -> true)
                 .executes(context -> {
                     CommandSource sender = context.getSource();
                     sendAdminCommandsList(sender);
@@ -574,6 +604,7 @@ public final class AlixSystemCommand {
         sendMessage(sender, "&c/as user <player> &7- Returns information about the given player.");
         sendMessage(sender, "&c/as panicmode [on/off] &7- Manually enables/disables Panic-Mode (only already-registered IPs can connect).");
         sendMessage(sender, "&c/as save_all_local_to_db &7- Saves all locally-stored data into an externally-defined database (if any).");
+        sendMessage(sender, "&c/as reload &7- Reloads config.yml/database.yml/gui-menus/langs/allow-list from disk without restarting the proxy. Email settings and command aliases still need a real restart.");
         sendMessage(sender, "&c/as bl/bypasslimit <name> &7- Adds the specified name to the account limit bypass list. " +
                             "Such accounts are not restricted by the account limiter, no matter the config 'max-total-accounts' parameter.");
         sendMessage(sender, "&c/as bl-r/bypasslimit-remove <name> &7- Removes the specified name from the account limit bypass list.");
@@ -588,8 +619,11 @@ public final class AlixSystemCommand {
         sendMessage(sender, "");
     }
 
-    // Lists every player-facing command along with a short description of what it does
-    private static void sendPlayerCommandsList(CommandSource sender) {
+    // Lists every player-facing command along with a short description of what it does. Package-private (not
+    // private) so CommandManager#register_Help() can reuse it for the separate, non-admin-gated "/alixhelp"
+    // command - see the comment on the "commands" subcommand above for why that had to be a separate command
+    // rather than just opening up this "/as ..." subcommand to everyone.
+    static void sendPlayerCommandsList(CommandSource sender) {
         sendMessage(sender, "&e&lPlayer commands:");
         sendMessage(sender, "&c/register <password> &7- Registers a new account (format may differ depending on the server's configuration, e.g. requiring an email or a repeated password).");
         sendMessage(sender, "&c/login <password> &7- Logs into an existing account.");
