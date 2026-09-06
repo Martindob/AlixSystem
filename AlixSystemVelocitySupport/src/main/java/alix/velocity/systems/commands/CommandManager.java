@@ -113,7 +113,7 @@ public final class CommandManager {
 
                     var data = user.getData();
                     if (data == null) {
-                        player.sendRichMessage("<red>Error - Missing persistent data");
+                        AlixUtils.sendMessage(player, Messages.getWithPrefix("account-missing-data"));
                         return SINGLE_SUCCESS;
                     }
                     AccountGUI.add(user);
@@ -125,7 +125,7 @@ public final class CommandManager {
                 .executes(ctx -> {
                     if (isConsole(ctx)) return SINGLE_SUCCESS;
                     Player player = (Player) ctx.getSource();
-                    AlixUtils.sendMessage(player, "&eSpecify the verify code!");
+                    AlixUtils.sendMessage(player, Messages.getWithPrefix("account-verifyemail-specify-code"));
                     return SINGLE_SUCCESS;
                 })
                 .then(BrigadierCommand.requiredArgumentBuilder("verify-code", StringArgumentType.word())
@@ -142,7 +142,7 @@ public final class CommandManager {
                 .executes(ctx -> {
                     if (isConsole(ctx)) return SINGLE_SUCCESS;
                     Player player = (Player) ctx.getSource();
-                    AlixUtils.sendMessage(player, "&eUsage: /account sendverifyemail <email>");
+                    AlixUtils.sendMessage(player, Messages.getWithPrefix("account-sendverifyemail-usage"));
                     return SINGLE_SUCCESS;
                 })
                 .then(BrigadierCommand.requiredArgumentBuilder("email", StringArgumentType.greedyString())
@@ -176,7 +176,7 @@ public final class CommandManager {
             if (isConsole(ctx)) return SINGLE_SUCCESS;
 
             Player player = (Player) ctx.getSource();
-            sendMessage(player, "&eSpecify your new password!");
+            sendMessage(player, Messages.getWithPrefix("changepassword-specify-password"));
             return SINGLE_SUCCESS;
         }).then(BrigadierCommand.requiredArgumentBuilder("new password", StringArgumentType.word())
                 .executes(ctx -> {
@@ -186,7 +186,7 @@ public final class CommandManager {
 
                     var data = user.getData();
                     if (data == null) {
-                        player.sendRichMessage("<red>Error - missing persistent data");
+                        AlixUtils.sendMessage(player, Messages.getWithPrefix("account-missing-data"));
                         return SINGLE_SUCCESS;
                     }
                     String password = ctx.getInput();

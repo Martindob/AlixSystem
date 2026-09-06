@@ -627,23 +627,23 @@ public final class AlixSystemCommand {
     // command - see the comment on the "commands" subcommand above for why that had to be a separate command
     // rather than just opening up this "/as ..." subcommand to everyone.
     static void sendPlayerCommandsList(CommandSource sender) {
-        sendMessage(sender, "&e&lPlayer commands:");
+        sendMessage(sender, Messages.get("player-commands-header"));
         // /register and /login are deliberately not listed here: both are already explained to the
         // player at the point they're actually needed (a detailed prompt on first join for /register,
         // the respective login GUI/prompt for /login), so repeating them in a general command list adds
         // nothing at runtime.
-        sendMessage(sender, "&c/recovery <email> &7- Recovers account access via a registered recovery email, while unregistered.");
+        sendMessage(sender, Messages.get("player-commands-recovery"));
         // /terms is only ever relevant while 'require-terms-acceptance' is on (it's not a real command
         // otherwise), and even then it's already explained via the in-your-face prompt shown during
         // registration - only listed here as a reminder for that same reason, gated behind the setting
         // that makes it exist at all.
         if (LoginState.requireTermsAcceptance)
-            sendMessage(sender, "&c/terms accept|decline &7- Accepts or declines the Terms & Conditions during registration (only used if enabled in the server's configuration).");
-        sendMessage(sender, "&c/account &7- Opens the account settings menu (email recovery, login settings, passwords, 2FA).");
-        sendMessage(sender, "&c/account sendverifyemail <email> &7- Sends a verification code to the given email address.");
-        sendMessage(sender, "&c/account verifyemail <code> &7- Verifies your email address using the code sent to it.");
-        sendMessage(sender, "&c/changepassword <new password> &7- Changes your account's password.");
-        sendMessage(sender, "&c/premium &7- Attempts to register your account as premium.");
+            sendMessage(sender, Messages.get("player-commands-terms"));
+        sendMessage(sender, Messages.get("player-commands-account"));
+        sendMessage(sender, Messages.get("player-commands-account-sendverifyemail"));
+        sendMessage(sender, Messages.get("player-commands-account-verifyemail"));
+        sendMessage(sender, Messages.get("player-commands-changepassword"));
+        sendMessage(sender, Messages.get("player-commands-premium"));
         sendMessage(sender, "");
     }
 
