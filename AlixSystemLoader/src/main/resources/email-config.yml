@@ -72,3 +72,14 @@ web-verification-port: 8091
 web-verification-public-url: ""
 # How many minutes a verification link stays valid for before it expires (each link can also only ever be used once)
 web-verification-token-expiry-minutes: 30
+#
+# HOW TO CHECK THIS IS ACTUALLY WORKING, without waiting for a real verification email:
+# after starting/reloading the proxy with 'enable-web-verification: true', open "<web-verification-public-url>/verify"
+# in a browser (e.g. "https://verify.your-domain.com/verify") - with no real token, you should see an
+# "Link invalid or expired" page. That page IS the expected/correct result here (it just means no matching
+# token was found, which no browser visit without a real email link ever will) - what actually matters is that
+# you see THAT page at all, instead of the browser failing to connect/timing out. If it fails to connect:
+# the port isn't reachable from the internet (firewall/router port-forwarding) or 'web-verification-public-url'
+# doesn't actually point at 'web-verification-bind-address'/'web-verification-port' (check your reverse proxy
+# config, if you're using one). The real end-to-end test is still to actually register/request a verification
+# email and click the real link it contains.
