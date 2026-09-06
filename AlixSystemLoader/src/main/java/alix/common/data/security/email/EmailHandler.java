@@ -120,6 +120,16 @@ public final class EmailHandler {
     }
 
     public static <T> boolean verifyRecoveryCode(T caller, String code) {
+        return verifyCode(caller, code);
+    }
+
+    //Generic "does this code match the caller's pending session" check, consuming the session either way it
+    //resolves valid/matched - used both by account recovery (verifyRecoveryCode() above) and by
+    //LoginState.handleRegisterVerifyEmailCommand() for 'require-email-in-register' registrations. Deliberately
+    //independent of PersistentUserData/verifyMail() below, since neither caller has an account to attach the
+    //result to at the point they call this - recovery doesn't need to (see EmailRecovery), and a pending
+    //registration's account doesn't exist yet at all.
+    public static <T> boolean verifyCode(T caller, String code) {
         var session = VERIFY_CODES.get(caller);
         if (session == null) return false;
         if (code.trim().equals(session.code())) {

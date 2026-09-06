@@ -111,6 +111,11 @@ public final class LoginState implements VerifyState {
     public int loginAttempts;
     //Whether this (still unregistered) connection has accepted the Terms & Conditions, when 'require-terms-acceptance' is enabled
     private boolean termsAccepted;
+    //Set while a 'require-email-in-register' registration is waiting on the player to type "/verifyemail <code>" -
+    //see handleRegisterCommandWithEmail()/handleRegisterVerifyEmailCommand(). Both are cleared together, so
+    //null/non-null on the password field alone is enough to tell whether this gate is currently active.
+    private String pendingRegisterPassword, pendingRegisterEmail;
+    private int invalidRegisterCodeAttempts;
 
     public LoginState(ClientConnection connection) {
         this.connection = connection;
@@ -404,11 +409,13 @@ public final class LoginState implements VerifyState {
         String[] args = Arrays.copyOfRange(split, 1, split.length);
 
         //While a login GUI (anvil/PIN/bedrock/2FA/recovery) is showing, the only commands still allowed
-        //through chat are "recovery" (to start/continue account recovery) and "terms" (to accept/decline
-        //the Terms & Conditions, since that's chat-only and has no GUI of its own) - everything else must
+        //through chat are "recovery" (to start/continue account recovery), "terms" (to accept/decline
+        //the Terms & Conditions, since that's chat-only and has no GUI of its own) and "verifyemail" (to
+        //complete a 'require-email-in-register' registration, also chat-only) - everything else must
         //go through the GUI itself. This is enforced once here so it applies uniformly to every command
         //source: signed and unsigned 1.19+ command packets and legacy pre-1.19 chat-as-command alike.
-        if (this.gui != null && !cmdName.equals("recovery") && !cmdName.equals("terms")) return;
+        if (this.gui != null && !cmdName.equals("recovery") && !cmdName.equals("terms") && !cmdName.equals("verifyemail"))
+            return;
 
         if (cmdName.equals("recovery")) {
             this.handleRecoveryCommand(args);
@@ -426,6 +433,13 @@ public final class LoginState implements VerifyState {
             return;
         }
 
+        //Same reasoning as "terms" above: must be dispatched before the isRegistered/gate checks below, since
+        //this is exactly how an unregistered, gated connection is expected to eventually become registered.
+        if (cmdName.equals("verifyemail")) {
+            this.handleRegisterVerifyEmailCommand(args);
+            return;
+        }
+
         if (this.isRegistered) {
             this.handleLoginCommand(args);
             return;
@@ -433,6 +447,11 @@ public final class LoginState implements VerifyState {
 
         if (this.isTermsGateBlocking()) {
             this.sendTermsPrompt();
+            return;
+        }
+
+        if (this.isEmailRegisterGateBlocking()) {
+            this.sendEmailRegisterGatePrompt();
             return;
         }
 
@@ -633,6 +652,17 @@ public final class LoginState implements VerifyState {
 
     //Handles /register when a mandatory email is configured ('require-email-in-register'). Expected format is either
     // /register <password> <email>, or /register <password> <password> <email> when password-repeat is also enabled.
+    //
+    //The account is deliberately NOT created here - only once the code sent below is confirmed via "/verifyemail
+    //<code>" (see handleRegisterVerifyEmailCommand()). Earlier revisions called registerIfValid() immediately and
+    //saved the (unverified) email straight onto the new account, kicking off verification only after the player
+    //had already fully joined - which meant an account with a never-verified email was fully playable, and every
+    //other Alix-side or external (e.g. a website integration reading alix_users2.email) consumer of that column
+    //had no way to tell it apart from a genuinely verified one, since nothing else in Alix ever puts an
+    //unverified value there. Gating registration itself on the code instead - the same pattern
+    //'require-terms-acceptance' already uses for Terms & Conditions - closes that gap entirely: if the player
+    //never verifies, they simply never end up with an account at all (nothing is persisted), rather than ending
+    //up with one whose email can't be trusted.
     private void handleRegisterCommandWithEmail(String[] args) {
         int expectedArgs = requirePasswordRepeatInRegister ? 3 : 2;
         if (args.length != expectedArgs) {
@@ -656,17 +686,69 @@ public final class LoginState implements VerifyState {
             return;
         }
 
-        PersistentUserData registered = this.registerIfValid(password, LoginType.COMMAND);
-        //registerIfValid returns null when the password itself was rejected (e.g. invalid characters/length) - in that case a message was already sent, so skip attaching the email
-        if (registered != null) {
-            //the email is saved here, but NOT verified yet - actually sending the verification code is deliberately not done here, to avoid sending further
-            // asynchronous feedback over a connection that's about to be handed off/invalidated by the login process. Instead, a flag is stashed on the
-            // underlying Channel (which survives the hand-off) so that VerifiedPacketProcessor can automatically kick off verification once the player
-            // has fully joined and has a stable connection - see LoginInfo.markPendingEmailVerification
-            registered.setEmail(email);
-            LoginInfo.markPendingEmailVerification(this.connection.getChannel());
-            this.sendMessage(Messages.getWithPrefix("register-email-saved", email));
+        //Validate the password itself up front, the same way registerIfValid() eventually will - there's no
+        //PersistentUserData to run that check against yet (the account doesn't exist until the code below is
+        //confirmed), and there's no reason to burn a real email send on a password that's going to be rejected
+        //anyway.
+        String reason = AlixCommonUtils.getPasswordInvalidityReason(password, LoginType.COMMAND);
+        if (reason != null) {
+            this.duplexHandler.write(SoundPackets.VILLAGER_NO);
+            this.sendMessage(reason);
+            return;
         }
+
+        this.pendingRegisterPassword = password;
+        this.pendingRegisterEmail = email;
+        EmailHandler.sendVerifyMail(this.connection, email, false, (conn, msg) -> this.sendMessage(msg));
+        this.sendMessage(Messages.getWithPrefix("register-email-verification-sent", email));
+    }
+
+    //True while a 'require-email-in-register' registration is waiting on the player to confirm their email via
+    //"/verifyemail <code>" - see handleRegisterCommandWithEmail().
+    private boolean isEmailRegisterGateBlocking() {
+        return this.pendingRegisterPassword != null;
+    }
+
+    //Reminds a gated-but-unregistered player that they still need to confirm their email before anything else
+    //they type (other than "/verifyemail <code>" itself) will do anything - mirrors sendTermsPrompt()'s role for
+    //the Terms & Conditions gate.
+    private void sendEmailRegisterGatePrompt() {
+        this.sendMessage(Messages.getWithPrefix("register-email-verification-required"));
+    }
+
+    //Handles the pre-login "/verifyemail <code>" command that completes a 'require-email-in-register'
+    //registration - see handleRegisterCommandWithEmail() for why the account isn't created until this succeeds.
+    private void handleRegisterVerifyEmailCommand(String[] args) {
+        if (!this.isEmailRegisterGateBlocking()) {
+            this.sendMessage(Messages.getWithPrefix("verify-mail.send-first", "/register"));
+            return;
+        }
+
+        if (args.length != 1) {
+            this.sendMessage(Messages.getWithPrefix("register-email-verification-required"));
+            return;
+        }
+
+        if (EmailHandler.verifyCode(this.connection, args[0].trim())) {
+            String password = this.pendingRegisterPassword;
+            String email = this.pendingRegisterEmail;
+            this.pendingRegisterPassword = null;
+            this.pendingRegisterEmail = null;
+
+            //registerIfValid() re-validates the password and re-checks the terms gate - both already known-good
+            //by this point, but going through the same central choke point as every other registration path
+            //rather than duplicating (or bypassing) its checks is worth the redundant work.
+            PersistentUserData registered = this.registerIfValid(password, LoginType.COMMAND);
+            if (registered != null) registered.setEmail(email);
+            return;
+        }
+
+        if (++this.invalidRegisterCodeAttempts == MAX_CODE_ATTEMPTS) {
+            this.disconnect(PacketPlayOutDisconnect.of(Messages.getWithPrefix("register-email-verification-too-many-attempts")));
+            return;
+        }
+
+        this.sendMessage(Messages.getWithPrefix("verify-mail.code-mismatch"));
     }
 
     private void handleLoginCommand(String[] args) {
