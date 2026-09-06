@@ -21,8 +21,24 @@ public final class MenuConfig {
 
     private static final ConcurrentMap<String, MenuConfig> CACHE = new ConcurrentHashMap<>();
 
+    //Keep in sync with MenuRegistry's valid "[open-menu] <id>" ids and FileUpdater's own GUI_MENU_NAMES
+    private static final String[] MENU_NAMES = {"account", "passwords", "login-settings", "google-auth", "ip-autologin"};
+
     public static MenuConfig get(String name) {
         return CACHE.computeIfAbsent(name, MenuConfig::load);
+    }
+
+    /**
+     * Eagerly loads every known menu once, at plugin startup. Without this, a menu's gui-menus/*.yml is
+     * only ever parsed the first time some player happens to open it (see {@link #get}'s lazy cache), so
+     * a config mistake (unknown material, missing slot - both already warned about in
+     * {@link MenuItemDef}) would only surface in the console log whenever that first player finally opens
+     * that particular menu, possibly long after the server owner has stopped watching the console for
+     * startup issues. Called once from Main#onEnable, after FileUpdater has already ensured every
+     * gui-menus/*.yml exists on disk.
+     */
+    public static void preloadAll() {
+        for (String name : MENU_NAMES) get(name);
     }
 
     /**

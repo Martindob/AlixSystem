@@ -140,6 +140,11 @@ public final class VelocityAlixMain implements AlixLoggerProvider, AlixMain {
             return ':';
         }
 
+        @Override
+        public String referenceMessagesFileName() {
+            return "langs/" + DEFAULT_LANGUAGE + ".yml";
+        }
+
         private ParamImpl() {
         }
     }
