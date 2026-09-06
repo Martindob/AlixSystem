@@ -6,7 +6,7 @@ public final class ConfigParams {
 
     public static final int maximumTotalAccounts, maxLoginTime;
     public static final boolean isDebugEnabled, isCaptchaMap, playerIPAutoLogin, forcefullyDisableAutoLogin, hasMaxLoginTime,
-            requireRegisterFromAll, loadBuiltInIps;
+            requireRegisterFromAll, loadBuiltInIps, checkBreachedPasswords;
     public static final LoginType defaultLoginType;
 
     static {
@@ -21,6 +21,7 @@ public final class ConfigParams {
         requireRegisterFromAll = config.getBoolean("require-register-from-all");
         loadBuiltInIps = config.getBoolean("load-builtin-ips");
         hasMaxLoginTime = maxLoginTime > 0;
+        checkBreachedPasswords = config.getBoolean("check-breached-passwords");
 
         /*String loginType = config.getString("password-type").toLowerCase();
         *//*switch (loginType) {

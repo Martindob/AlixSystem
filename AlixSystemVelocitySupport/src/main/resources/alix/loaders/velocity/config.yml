@@ -48,6 +48,15 @@ allow-case-sensitive-nicknames: false
 # anvil - The user registers/logs in using an anvil rename gui
 # pin - The user registers/logs in using a pin gui
 password-type: command
+#Defines whether a new/changed password is checked against the HaveIBeenPwned breached-password database
+#(https://haveibeenpwned.com/API/v3#PwnedPasswords) before being accepted, rejecting it if it's already
+#known to be publicly breached. Uses their "k-anonymity" range API: only the first 5 characters of the
+#password's SHA-1 hash are ever sent over the network - the real password, and even its full hash, never
+#leave this server. Off by default, since it adds a network round-trip (bounded to ~2 seconds, and it
+#fails open - a slow/unreachable API never blocks registration, it just skips the check for that attempt)
+#to every registration and password change while enabled. Not checked for PIN-type logins (a bare 4-digit
+#PIN has no meaningful breach data to check against).
+check-breached-passwords: false
 #Defines whether premium players should be given their equivalent mojang-assigned uuid (their data will persist between name changes)
 #Possible values:
 # true -> always assign a premium uuid to premium players (good if you don't already have premium players with an offline uuid)

@@ -4,6 +4,7 @@ import alix.common.AlixCommonMain;
 import alix.common.data.LoginType;
 import alix.common.data.PersistentUserData;
 import alix.common.data.premium.PremiumData;
+import alix.common.data.security.password.HibpChecker;
 import alix.common.data.security.password.Password;
 import alix.common.messages.Messages;
 import alix.common.utils.collections.RandomCharIterator;
@@ -25,6 +26,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static alix.common.utils.config.ConfigParams.checkBreachedPasswords;
 import static alix.common.utils.config.ConfigParams.defaultLoginType;
 
 public final class AlixCommonUtils {
@@ -45,7 +47,8 @@ public final class AlixCommonUtils {
                 tooShortMessage = Messages.getWithPrefix("password-invalid-too-short"),
                 invalidCharacterMessage = Messages.getWithPrefix("password-invalid-character"),
                 invalidCharacterBlankMessage = Messages.getWithPrefix("password-invalid-character-blank"),
-                pinTypeInvalid = Messages.getWithPrefix("gui-pin-type-invalid");
+                pinTypeInvalid = Messages.getWithPrefix("gui-pin-type-invalid"),
+                passwordBreachedMessage = Messages.getWithPrefix("password-invalid-breached");
     }
 
     public static <T> void debug(T[] message, Function<T, String> formatting, char separator) {
@@ -217,10 +220,16 @@ public final class AlixCommonUtils {
     }
 
     public static String getPasswordInvalidityReason(String password, LoginType type) {
-        if (type == LoginType.PIN) //if the login type is pin, ensure the password is also a pin
+        if (type == LoginType.PIN) //if the login type is pin, ensure the password is also a pin - HIBP has no meaningful data on bare 4-digit PINs, so it's never checked for this type
             return isPIN(password) ? null : DoNotThrow.pinTypeInvalid;
 
-        return getInvalidityReason(password, false);
+        String reason = getInvalidityReason(password, false);
+        if (reason != null) return reason;
+
+        if (checkBreachedPasswords && HibpChecker.isBreached(password))
+            return DoNotThrow.passwordBreachedMessage;
+
+        return null;
     }
 
     public static boolean isPIN(String password) {

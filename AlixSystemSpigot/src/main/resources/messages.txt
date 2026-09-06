@@ -221,6 +221,7 @@ not-logged-in-reminder: &cPlease type /login <password>
 online-player-list: Online Player List ({0} Currently Online)
 packet-limit-reached-verification: &c[AntiBot] You've sent too many total packets!
 password-changed: &aSuccessfully changed your password!
+password-invalid-breached: &cThis password has appeared in a known data breach - please pick a different one.
 password-invalid-character: Invalid character '{1}' at "{0}&c{1}&7{2}" <- HERE
 password-invalid-character-blank: Invalid character '{1}' (Blank) at "{0}&c{1}&7{2}" <- HERE
 password-invalid-gui: &cINVALID PASSWORD
