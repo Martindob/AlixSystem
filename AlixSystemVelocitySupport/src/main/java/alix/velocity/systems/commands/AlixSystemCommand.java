@@ -616,6 +616,8 @@ public final class AlixSystemCommand {
         sendMessage(sender, "&c/as rs/resetstatus <player> &7- Resets the player's premium status. Mainly aimed to forgive cracked players who used /premium");
         sendMessage(sender, "&c/as fs/forcestatus <player> <status> &7- Forcefully sets the player's premium status (if can safely be done)");
         sendMessage(sender, "&c/as ufw <ip> &7- Removes the given ip from the Firewall Database, if possible.");
+        sendMessage(sender, "&c/as sendverifyemail &7- Sends a verification code to the server's own outgoing address (see email-config.yml). Required once, before any email-dependent player feature (e.g. account recovery) becomes available.");
+        sendMessage(sender, "&c/as verifyemail <code> &7- Confirms the code from /as sendverifyemail above.");
         sendMessage(sender, "&c/as commands &7- Lists all available commands, admin and player-facing alike.");
         sendMessage(sender, "");
     }

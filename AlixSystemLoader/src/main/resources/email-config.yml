@@ -23,6 +23,15 @@ host: smtp.gmail.com
 # Usually either 587 (TLS) or 465 (SSL)
 #Can also be set custom (will have SSL enabled)
 port: 587
+#
+# REQUIRED ONE-TIME STEP: filling in the settings above is not enough by itself - the SERVER'S OWN outgoing
+# address above must also be verified once, in-game, as a real console admin (or any account with the
+# 'alixsystem.admin' permission), by running:
+#   /as sendverifyemail          (sends a code to the 'email' address configured above)
+#   /as verifyemail <code>       (confirms it, using the code you just received)
+# Until this is done, every player-facing feature that depends on email (account recovery via email,
+# the "email-recovery" button in /account's Login Settings menu, etc.) stays unavailable, even if a player
+# already has an email saved on their own account - this is a server-wide switch, not a per-player one.
 
 #------------------------------------------------#
 #                USER EXPERIENCE                 #
