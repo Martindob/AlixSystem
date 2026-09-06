@@ -35,6 +35,7 @@ import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandSource;
 import io.netty.channel.Channel;
 import net.kyori.adventure.text.Component;
+import ua.nanit.limbo.connection.login.LoginState;
 
 import java.net.InetAddress;
 import java.util.Arrays;
@@ -625,10 +626,17 @@ public final class AlixSystemCommand {
     // rather than just opening up this "/as ..." subcommand to everyone.
     static void sendPlayerCommandsList(CommandSource sender) {
         sendMessage(sender, "&e&lPlayer commands:");
-        sendMessage(sender, "&c/register <password> &7- Registers a new account (format may differ depending on the server's configuration, e.g. requiring an email or a repeated password).");
-        sendMessage(sender, "&c/login <password> &7- Logs into an existing account.");
+        // /register and /login are deliberately not listed here: both are already explained to the
+        // player at the point they're actually needed (a detailed prompt on first join for /register,
+        // the respective login GUI/prompt for /login), so repeating them in a general command list adds
+        // nothing at runtime.
         sendMessage(sender, "&c/recovery <email> &7- Recovers account access via a registered recovery email, while unregistered.");
-        sendMessage(sender, "&c/terms accept|decline &7- Accepts or declines the Terms & Conditions during registration (only used if enabled in the server's configuration).");
+        // /terms is only ever relevant while 'require-terms-acceptance' is on (it's not a real command
+        // otherwise), and even then it's already explained via the in-your-face prompt shown during
+        // registration - only listed here as a reminder for that same reason, gated behind the setting
+        // that makes it exist at all.
+        if (LoginState.requireTermsAcceptance)
+            sendMessage(sender, "&c/terms accept|decline &7- Accepts or declines the Terms & Conditions during registration (only used if enabled in the server's configuration).");
         sendMessage(sender, "&c/account &7- Opens the account settings menu (email recovery, login settings, passwords, 2FA).");
         sendMessage(sender, "&c/account sendverifyemail <email> &7- Sends a verification code to the given email address.");
         sendMessage(sender, "&c/account verifyemail <code> &7- Verifies your email address using the code sent to it.");

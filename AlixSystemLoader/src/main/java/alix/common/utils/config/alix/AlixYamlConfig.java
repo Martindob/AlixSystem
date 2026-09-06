@@ -9,6 +9,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class AlixYamlConfig {
 
@@ -51,7 +53,7 @@ public final class AlixYamlConfig {
                 AlixCommonMain.logWarning("Config '" + path + "' param has a list-like structure " + list + ", using " + path + "=" + val);
             }
         }
-        return val != null ? val.trim() : def;
+        return val != null ? unwrapDefaultOf(val.trim()) : def;
     }
 
     public String get(String path) {
@@ -74,7 +76,7 @@ public final class AlixYamlConfig {
         }
         List<T> transformed = new ArrayList<>(list.size());
         for (String s : list)
-            transformed.add(transformer.apply(s));
+            transformed.add(transformer.apply(unwrapDefaultOf(s)));
         return transformed;
     }
 
@@ -104,7 +106,7 @@ public final class AlixYamlConfig {
             List<String> list = this.file.lists.get(path);
             if (list != null && !list.isEmpty()) val = list.get(0);
         }
-        return val != null ? removeQuotations(val.trim()) : def;
+        return val != null ? removeQuotations(unwrapDefaultOf(val.trim())) : def;
     }
 
     /**
@@ -130,7 +132,7 @@ public final class AlixYamlConfig {
         }
         List<String> transformed = new ArrayList<>(list.size());
         for (String s : list)
-            transformed.add(removeQuotations(s));
+            transformed.add(removeQuotations(unwrapDefaultOf(s)));
         return transformed;
     }
 
@@ -141,6 +143,23 @@ public final class AlixYamlConfig {
      */
     public boolean hasKey(String path) {
         return this.file.values.containsKey(path) || this.file.lists.containsKey(path);
+    }
+
+    private static final Pattern DEFAULT_OF_PATTERN = Pattern.compile("^default_of\\((.*)\\)$", Pattern.DOTALL);
+
+    /**
+     * A value written as {@code default_of(x)} is read exactly as {@code x} - the wrapper only matters
+     * to {@link alix.common.utils.file.update.FileUpdater}'s on-disk merge, which uses it to tell "the
+     * bundled default, never touched by the operator" apart from "the operator deliberately set this",
+     * so a future plugin update can silently change the former (e.g. reposition a gui-menus item, swap a
+     * default icon) without touching the latter. See the "DEFAULT_OF(...) VALUES" section in
+     * gui-menus/*.yml for the operator-facing explanation. Stripping the wrapper here, at every read,
+     * means call sites never need to know it exists.
+     */
+    private static String unwrapDefaultOf(String value) {
+        if (value == null) return null;
+        Matcher m = DEFAULT_OF_PATTERN.matcher(value.trim());
+        return m.matches() ? m.group(1).trim() : value;
     }
 
     private static String removeQuotations(String str) {

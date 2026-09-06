@@ -263,7 +263,12 @@ public final class FileUpdater {
 
                 if (isHashtagStartValid && removeHashtagStart(existingLineStart).equals(removeHashtagStart(newestLineStart))//the line exists with hashtag start ignore config
                         || existingLineStart.equals(newestLineStart)) {//the line exists
-                    newestLines.set(i, existingLine);//we copy the line's config after confirming it's existence
+                    //"default_of(x)" marks x as the bundled default rather than a deliberate choice (see
+                    //AlixYamlConfig#unwrapDefaultOf) - as long as the operator hasn't stripped the wrapper,
+                    //this line isn't a customization to preserve, so let the newest bundled line (with
+                    //whatever new default it now carries) stand instead of copying the stale one over it.
+                    if (!isUntouchedDefaultOf(existingLine, splitWith))
+                        newestLines.set(i, existingLine);//we copy the line's config after confirming it's existence
                     break;
                 }
             }
@@ -315,6 +320,15 @@ public final class FileUpdater {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    //True if 'line's value (the part after the first spliterator) is still exactly "default_of(...)",
+    //i.e. the operator never overrode it - see the "default_of(x)" handling above.
+    private static boolean isUntouchedDefaultOf(String line, String splitWith) {
+        String[] parts = line.split(splitWith, 2);
+        if (parts.length < 2) return false;
+        String value = parts[1].trim();
+        return value.startsWith("default_of(") && value.endsWith(")");
     }
 
     private static String removeHashtagStart(String s) {

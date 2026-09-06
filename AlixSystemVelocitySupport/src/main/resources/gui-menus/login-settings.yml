@@ -16,10 +16,20 @@
 # grid - see gui-menus/account.yml's comments for the full settings/actions reference.
 #
 # background.material / background.name - the filler item shown in every slot with no item assigned.
+#
+# DEFAULT_OF(...) VALUES
+# Some values below are written as "default_of(x)" instead of a plain "x" - this marks x as the
+# plugin's own bundled default rather than something you've deliberately chosen. It's read exactly
+# like a plain "x" today, but a future update may silently change what's inside the parentheses (e.g.
+# reposition an item, swap a default icon/texture) even on a server that's already running this exact
+# file. A plain, unwrapped value (no matter what it's set to) is treated as YOUR deliberate choice and
+# is never touched by an update, for as long as the setting it belongs to still exists.
+# To lock a "default_of(...)" value in place so it never changes on you again, just delete the
+# "default_of(" and its matching ")", keeping the value itself.
 
 title: "@gui-title-login-settings"
 
-background.material: GRAY_STAINED_GLASS_PANE
+background.material: default_of(GRAY_STAINED_GLASS_PANE)
 background.name: "&f"
 
 item-order:
@@ -27,11 +37,11 @@ item-order:
   - email-recovery
   - back
 
-items.ip-autologin.slot: 0
+items.ip-autologin.slot: default_of(0)
 items.ip-autologin.internal: ip-autologin
 
-items.email-recovery.slot: 1
+items.email-recovery.slot: default_of(1)
 items.email-recovery.internal: email-recovery
 
-items.back.slot: 8
+items.back.slot: default_of(8)
 items.back.internal: back

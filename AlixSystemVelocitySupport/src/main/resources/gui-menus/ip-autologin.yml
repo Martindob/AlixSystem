@@ -15,10 +15,20 @@
 #   reject    - disables IP auto-login
 #
 # background.material / background.name - the filler item shown in every slot with no item assigned.
+#
+# DEFAULT_OF(...) VALUES
+# Some values below are written as "default_of(x)" instead of a plain "x" - this marks x as the
+# plugin's own bundled default rather than something you've deliberately chosen. It's read exactly
+# like a plain "x" today, but a future update may silently change what's inside the parentheses (e.g.
+# reposition an item, swap a default icon/texture) even on a server that's already running this exact
+# file. A plain, unwrapped value (no matter what it's set to) is treated as YOUR deliberate choice and
+# is never touched by an update, for as long as the setting it belongs to still exists.
+# To lock a "default_of(...)" value in place so it never changes on you again, just delete the
+# "default_of(" and its matching ")", keeping the value itself.
 
 title: "@gui-title-ip-autologin"
 
-background.material: GRAY_STAINED_GLASS_PANE
+background.material: default_of(GRAY_STAINED_GLASS_PANE)
 background.name: "&f"
 
 item-order:
@@ -26,16 +36,16 @@ item-order:
   - accept
   - reject
 
-items.question-mark.slot: 1
-items.question-mark.head-texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmFkYzA0OGE3Y2U3OGY3ZGFkNzJhMDdkYTI3ZDg1YzA5MTY4ODFlNTUyMmVlZWQxZTNkYWYyMTdhMzhjMWEifX19"
+items.question-mark.slot: default_of(1)
+items.question-mark.head-texture: default_of("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmFkYzA0OGE3Y2U3OGY3ZGFkNzJhMDdkYTI3ZDg1YzA5MTY4ODFlNTUyMmVlZWQxZTNkYWYyMTdhMzhjMWEifX19")
 items.question-mark.name: "@gui-ip-autologin-question-mark"
 items.question-mark.lore:
   - "@gui-ip-autologin-what-is-this"
 items.question-mark.actions:
   - "[none]"
 
-items.accept.slot: 6
+items.accept.slot: default_of(6)
 items.accept.internal: accept
 
-items.reject.slot: 8
+items.reject.slot: default_of(8)
 items.reject.internal: reject
