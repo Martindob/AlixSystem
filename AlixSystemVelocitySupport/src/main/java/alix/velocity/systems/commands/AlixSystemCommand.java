@@ -652,6 +652,8 @@ public final class AlixSystemCommand {
     // rather than just opening up this "/as ..." subcommand to everyone.
     static void sendPlayerCommandsList(CommandSource sender) {
         sendMessage(sender, Messages.get("player-commands-header"));
+
+        sendMessage(sender, Messages.get("player-commands-section-login"));
         // /register and /login are deliberately not listed here: both are already explained to the
         // player at the point they're actually needed (a detailed prompt on first join for /register,
         // the respective login GUI/prompt for /login), so repeating them in a general command list adds
@@ -663,6 +665,9 @@ public final class AlixSystemCommand {
         // that makes it exist at all.
         if (LoginState.requireTermsAcceptance)
             sendMessage(sender, Messages.get("player-commands-terms"));
+        sendMessage(sender, "");
+
+        sendMessage(sender, Messages.get("player-commands-section-account"));
         sendMessage(sender, Messages.get("player-commands-account"));
         sendMessage(sender, Messages.get("player-commands-account-sendverifyemail"));
         sendMessage(sender, Messages.get("player-commands-account-verifyemail"));
