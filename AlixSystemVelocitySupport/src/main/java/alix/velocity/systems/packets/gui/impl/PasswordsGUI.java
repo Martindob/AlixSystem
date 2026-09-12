@@ -143,13 +143,13 @@ public final class PasswordsGUI extends AlixGUI {
 
         GUIItem backGuiItem = new GUIItem(GO_BACK_ITEM, event -> this.originalGui.map());//set the original gui as used
 
-        GUIItem saveChangesGuiItem = new GUIItem(SAVE_CHANGES, event -> {
-            if (changes.tryApply(this.user.user)) {
+        GUIItem saveChangesGuiItem = new GUIItem(SAVE_CHANGES, event -> changes.tryApply(this.user.user, success -> {
+            if (success) {
                 this.user.writePacketSilently(SoundPackets.wrapperOf(Sounds.ENTITY_PLAYER_LEVELUP));
                 user.user.sendMessage(appliedChanges);
                 user.closeInventory();
             } else this.user.sendPacketSilently(SoundPackets.wrapperOf(Sounds.ENTITY_VILLAGER_NO));//the tryApply method will provide the text feedback
-        });
+        }));
 
         Map<String, GUIItem> internalItems = Map.of(
                 "login-type", loginTypeGuiItem,

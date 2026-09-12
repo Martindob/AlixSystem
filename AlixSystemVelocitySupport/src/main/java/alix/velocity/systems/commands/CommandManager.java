@@ -191,16 +191,17 @@ public final class CommandManager {
                     }
                     String password = ctx.getInput();
 
-                    String reason = AlixCommonUtils.getPasswordInvalidityReason(password, LoginType.ANVIL);
-                    if (reason != null) {
-                        user.writePacketSilently(SoundPackets.wrapperOf(Sounds.ENTITY_VILLAGER_NO));
-                        player.sendMessage(Component.text(reason));
-                        return SINGLE_SUCCESS;
-                    }
+                    AlixCommonUtils.getPasswordInvalidityReasonAsync(password, LoginType.ANVIL, reason -> {
+                        if (reason != null) {
+                            user.writePacketSilently(SoundPackets.wrapperOf(Sounds.ENTITY_VILLAGER_NO));
+                            player.sendMessage(Component.text(reason));
+                            return;
+                        }
 
-                    if (data.getLoginType() == LoginType.PIN)
-                        data.setLoginType(LoginType.ANVIL);
-                    data.setPassword(password);
+                        if (data.getLoginType() == LoginType.PIN)
+                            data.setLoginType(LoginType.ANVIL);
+                        data.setPassword(password);
+                    });
                     return SINGLE_SUCCESS;
                 })
         ).build();

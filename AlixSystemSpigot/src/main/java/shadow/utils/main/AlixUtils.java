@@ -39,6 +39,7 @@ import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 public final class AlixUtils {
@@ -375,12 +376,12 @@ public final class AlixUtils {
         return data != null ? data.getPasswordType() == PasswordType.PIN : fancyPasswordGui || defaultPasswordType == PasswordType.PIN;
     }*/
 
-    public static String getPasswordInvalidityReason(String password, LoginType type) {
-        return AlixCommonUtils.getPasswordInvalidityReason(password, type);
+    public static void getPasswordInvalidityReasonAsync(String password, LoginType type, Consumer<String> callback) {
+        AlixCommonUtils.getPasswordInvalidityReasonAsync(password, type, callback);
     }
 
-    public static String getPasswordInvalidityReason(String password, LoginType type, boolean checkBreach) {
-        return AlixCommonUtils.getPasswordInvalidityReason(password, type, checkBreach);
+    public static String getPasswordInvalidityReasonSync(String password, LoginType type) {
+        return AlixCommonUtils.getPasswordInvalidityReasonSync(password, type);
     }
 
     public static String formatMillis(long millis) {

@@ -18,6 +18,7 @@ import ua.nanit.limbo.protocol.snapshot.PacketSnapshot;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 
 import static ua.nanit.limbo.connection.login.gui.LimboAuthBuilder.*;
 import static ua.nanit.limbo.connection.login.packets.SoundPackets.*;
@@ -116,14 +117,18 @@ public final class LimboPinBuilder implements LimboGUI {
             boolean login = append(digit);
 
             if (login && pinAutoConfirm) {//logging in
-                boolean spoofItems = this.onPINConfirmation();
-                if (!spoofItems) return;
+                this.onPINConfirmation(spoofItems -> {
+                    if (spoofItems) this.spoofAllItems();
+                });
+                return;
             } else if (pin.length() != 4)
                 this.duplexHandler.writeAndFlush(NOTE_BLOCK_HARP);//adding a pin digit
 
         } else if (performAction(slot)) {
-            boolean spoofItems = this.onPINConfirmation();
-            if (!spoofItems) return;
+            this.onPINConfirmation(spoofItems -> {
+                if (spoofItems) this.spoofAllItems();
+            });
+            return;
         }
         this.spoofAllItems();
     }
@@ -139,24 +144,29 @@ public final class LimboPinBuilder implements LimboGUI {
         this.spoofAllItems();
     }
 
-    private boolean onPINConfirmation() {
+    private void onPINConfirmation(Consumer<Boolean> callback) {
         String pin = this.getPasswordBuilt();
 
         if (PersistentUserData.isRegistered(data)) {
             if (this.loginState.isPasswordCorrect(pin)) {
                 this.duplexHandler.writeAndFlush(PLAYER_LEVELUP);
                 this.loginState.tryLogIn();
-                return false;
+                callback.accept(false);
+                return;
             }
 
             if (this.loginState.onIncorrectPassword()) {
                 this.resetPin0();
-                return true;
+                callback.accept(true);
+                return;
             }
-            return false;
+            callback.accept(false);
+            return;
         }
         this.duplexHandler.writeAndFlush(PLAYER_LEVELUP);
-        return this.loginState.registerIfValid(pin, LoginType.PIN) == null;
+        //PIN logins never trigger the (network-bound) HaveIBeenPwned check - see
+        //AlixCommonUtils#getPasswordInvalidityReasonAsync - so this callback always fires synchronously here.
+        this.loginState.registerIfValid(pin, LoginType.PIN, data -> callback.accept(data == null));
         //this.connection.getPlayer().sendTitle(pinRegister, pinRegisterBottomLine.format(pin), 0, 100, 50);
     }
 

@@ -231,18 +231,19 @@ public final class AdminAlixCommands implements CommandExecutor {
                             }
                         } else type = LoginType.COMMAND;
 
-                        var invalidityReason = AlixUtils.getPasswordInvalidityReason(password, type);
-                        if (invalidityReason != null) {
-                            sendMessage(sender, "&6Invalid password:");
-                            sender.sendMessage(invalidityReason);
-                            return false;
-                        }
+                        AlixUtils.getPasswordInvalidityReasonAsync(password, type, invalidityReason -> {
+                            if (invalidityReason != null) {
+                                sendMessage(sender, "&6Invalid password:");
+                                sender.sendMessage(invalidityReason);
+                                return;
+                            }
 
-                        PersistentUserData data = PersistentUserData.createDefault(arg2, PersistentUserData.UNKNOWN_IP, Password.fromUnhashed(password));
+                            PersistentUserData data = PersistentUserData.createDefault(arg2, PersistentUserData.UNKNOWN_IP, Password.fromUnhashed(password));
 
-                        data.setLoginType(type);
-                        String passFormatted = "*".repeat(password.length() - 3) + password.substring(password.length() - 3);
-                        sendMessage(sender, "Successfully registered the player " + data.getName() + " with the password " + passFormatted + ", and login type " + type);
+                            data.setLoginType(type);
+                            String passFormatted = "*".repeat(password.length() - 3) + password.substring(password.length() - 3);
+                            sendMessage(sender, "Successfully registered the player " + data.getName() + " with the password " + passFormatted + ", and login type " + type);
+                        });
                         return true;
                     }
                     case "cp":
@@ -270,22 +271,23 @@ public final class AdminAlixCommands implements CommandExecutor {
                             }
                         } else type = data.getLoginType();
 
-                        var invalidityReason = AlixUtils.getPasswordInvalidityReason(password, type);
-                        if (invalidityReason != null) {
-                            sendMessage(sender, "&eInvalid password:");
-                            sender.sendMessage(invalidityReason);
-                            return false;
-                        }
+                        AlixUtils.getPasswordInvalidityReasonAsync(password, type, invalidityReason -> {
+                            if (invalidityReason != null) {
+                                sendMessage(sender, "&eInvalid password:");
+                                sender.sendMessage(invalidityReason);
+                                return;
+                            }
 
-                        data.setPassword(password);
-                        data.setLoginType(type);
-                        String passFormatted = "*".repeat(password.length() - 3) + password.substring(password.length() - 3);
-                        sendMessage(sender, "Successfully changed player " + data.getName() + "'s password to " + passFormatted + " with login type " + type);
+                            data.setPassword(password);
+                            data.setLoginType(type);
+                            String passFormatted = "*".repeat(password.length() - 3) + password.substring(password.length() - 3);
+                            sendMessage(sender, "Successfully changed player " + data.getName() + "'s password to " + passFormatted + " with login type " + type);
 
-                        if (data.getLoginParams().getExtraLoginType() != null) {
-                            sendMessage(sender, "&eAdditionally setting the player's extra login type to NONE to avoid issues.");
-                            data.getLoginParams().setExtraLoginType(null);
-                        }
+                            if (data.getLoginParams().getExtraLoginType() != null) {
+                                sendMessage(sender, "&eAdditionally setting the player's extra login type to NONE to avoid issues.");
+                                data.getLoginParams().setExtraLoginType(null);
+                            }
+                        });
                         return true;
                     }
                     case "rp":

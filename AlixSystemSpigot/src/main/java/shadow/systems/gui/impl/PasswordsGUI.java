@@ -156,14 +156,14 @@ public final class PasswordsGUI extends AlixGUI {
         });
 
         ItemStack i5 = SAVE_CHANGES;
-        items[17] = new GUIItem(i5, event -> {
-            if (changes.tryApply(player)) {
+        items[17] = new GUIItem(i5, event -> changes.tryApply(player, success -> {
+            if (success) {
                 player.sendRawMessage(appliedChanges);
                 player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1, 1);
                 player.closeInventory();
             } else
                 player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);//the tryApply method will provide the text feedback
-        });
+        }));
 
         return items;
     }

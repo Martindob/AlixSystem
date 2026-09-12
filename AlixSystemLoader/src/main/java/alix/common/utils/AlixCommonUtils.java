@@ -219,29 +219,44 @@ public final class AlixCommonUtils {
         return numbersOnly.toString();
     }
 
-    public static String getPasswordInvalidityReason(String password, LoginType type) {
-        return getPasswordInvalidityReason(password, type, true);
-    }
-
     /**
-     * @param checkBreach whether to also run the (network-bound) HaveIBeenPwned breach check, if enabled.
-     *                    Pass false for live, as-you-type validation feedback (e.g. an Anvil GUI's per-
-     *                    keystroke valid/invalid item spoofing) - a real HTTP call on every keystroke would
-     *                    be disastrous even off the calling thread. The actual point of commit (register/
-     *                    change password) always re-validates with checkBreach=true regardless, so nothing
-     *                    is lost by skipping it here.
+     * Local-only validation - never makes a network call. Use this for live, as-you-type feedback (e.g. an
+     * Anvil GUI's per-keystroke valid/invalid item spoofing), where a real HaveIBeenPwned HTTP call on every
+     * keystroke would be disastrous even off the calling thread. The actual point of commit (register/
+     * change password) always re-validates via getPasswordInvalidityReasonAsync() regardless, so nothing is
+     * lost by skipping the breach check here.
      */
-    public static String getPasswordInvalidityReason(String password, LoginType type, boolean checkBreach) {
+    public static String getPasswordInvalidityReasonSync(String password, LoginType type) {
         if (type == LoginType.PIN) //if the login type is pin, ensure the password is also a pin - HIBP has no meaningful data on bare 4-digit PINs, so it's never checked for this type
             return isPIN(password) ? null : DoNotThrow.pinTypeInvalid;
 
+        return getInvalidityReason(password, false);
+    }
+
+    /**
+     * Full validation, including the (network-bound, if 'check-breached-passwords' is enabled)
+     * HaveIBeenPwned breach check - use this at the actual point of commit (register/change password).
+     * Never blocks the calling thread: callback is invoked immediately, on the calling thread, whenever the
+     * breach check isn't needed (a PIN type, an already-invalid password, or the check disabled in
+     * config.yml - the overwhelming majority of calls), and otherwise asynchronously once the HTTP call
+     * completes - see HibpChecker#isBreachedAsync.
+     */
+    public static void getPasswordInvalidityReasonAsync(String password, LoginType type, Consumer<String> callback) {
+        if (type == LoginType.PIN) {
+            callback.accept(isPIN(password) ? null : DoNotThrow.pinTypeInvalid);
+            return;
+        }
+
         String reason = getInvalidityReason(password, false);
-        if (reason != null) return reason;
+        if (reason != null) {
+            callback.accept(reason);
+            return;
+        }
 
-        if (checkBreach && checkBreachedPasswords && HibpChecker.isBreached(password))
-            return DoNotThrow.passwordBreachedMessage;
-
-        return null;
+        if (checkBreachedPasswords)
+            HibpChecker.isBreachedAsync(password, breached -> callback.accept(breached ? DoNotThrow.passwordBreachedMessage : null));
+        else
+            callback.accept(null);
     }
 
     public static boolean isPIN(String password) {

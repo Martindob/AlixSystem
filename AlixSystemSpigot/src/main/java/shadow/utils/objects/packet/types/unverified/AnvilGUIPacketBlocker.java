@@ -96,7 +96,7 @@ public final class AnvilGUIPacketBlocker extends PacketBlocker {
         //Live, per-keystroke feedback - checkBreach=false, since a real HIBP network call on every keystroke
         //would be disastrous; the actual commit re-validates fully anyway.
         if (this.user.isRegistered()) invalidityReason = null;
-        else invalidityReason = AlixUtils.getPasswordInvalidityReason(this.builder.getInput(), LoginType.ANVIL, false);
+        else invalidityReason = AlixUtils.getPasswordInvalidityReasonSync(this.builder.getInput(), LoginType.ANVIL);
 
         this.builder.updateValidity(invalidityReason);
 

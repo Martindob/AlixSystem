@@ -132,25 +132,32 @@ public final class LoginState implements VerifyState {
         this.duplexHandler = connection.getDuplexHandler();
     }
 
-    public PersistentUserData registerIfValid(String password, LoginType type) {
-        //Central choke point for EVERY registration flow (chat command, anvil GUI, PIN GUI, bedrock form) -
-        //enforced here rather than only in the chat-command path, so no login type can register a new
-        //account without first accepting the Terms & Conditions when 'require-terms-acceptance' is on.
+    //Central choke point for EVERY registration flow (chat command, anvil GUI, PIN GUI, bedrock form) -
+    //enforced here rather than only in the chat-command path, so no login type can register a new account
+    //without first accepting the Terms & Conditions when 'require-terms-acceptance' is on. Callback-based
+    //(rather than returning PersistentUserData directly) because the password validity check can involve a
+    //real HaveIBeenPwned HTTP call - see AlixCommonUtils#getPasswordInvalidityReasonAsync - which must never
+    //block whatever thread (typically a Netty event-loop thread) calls this. The callback fires immediately,
+    //on the calling thread, whenever that HTTP call isn't needed (the overwhelming majority of calls).
+    public void registerIfValid(String password, LoginType type, Consumer<PersistentUserData> callback) {
         if (this.isTermsGateBlocking()) {
             this.sendTermsPrompt();
-            return null;
+            callback.accept(null);
+            return;
         }
 
         //can be optimized by creating PacketSnapshots for constant messages
         @OptimizationCandidate
-        String reason = AlixCommonUtils.getPasswordInvalidityReason(password, type);
-        if (reason != null) {
-            this.duplexHandler.write(SoundPackets.VILLAGER_NO);
-            this.sendMessage(reason);
-            return null;
-        }
-
-        return this.register0(password);
+        Consumer<String> onReason = reason -> {
+            if (reason != null) {
+                this.duplexHandler.write(SoundPackets.VILLAGER_NO);
+                this.sendMessage(reason);
+                callback.accept(null);
+            } else {
+                callback.accept(this.register0(password));
+            }
+        };
+        AlixCommonUtils.getPasswordInvalidityReasonAsync(password, type, onReason);
     }
 
     private boolean isTermsGateBlocking() {
@@ -634,7 +641,7 @@ public final class LoginState implements VerifyState {
             //todo: reconsider
             case 1: {//accept single inputs, even if repeat is explicitly enabled
                 String password = args[0];
-                this.registerIfValid(password, LoginType.COMMAND);
+                this.registerIfValid(password, LoginType.COMMAND, AlixCommonUtils.EMPTY_CONSUMER);
                 return;
             }
             case 2: {
@@ -651,7 +658,7 @@ public final class LoginState implements VerifyState {
                     return;
                 }
 
-                this.registerIfValid(password, LoginType.COMMAND);
+                this.registerIfValid(password, LoginType.COMMAND, AlixCommonUtils.EMPTY_CONSUMER);
                 return;
             }
             default: {
@@ -700,17 +707,18 @@ public final class LoginState implements VerifyState {
         //PersistentUserData to run that check against yet (the account doesn't exist until the code below is
         //confirmed), and there's no reason to burn a real email send on a password that's going to be rejected
         //anyway.
-        String reason = AlixCommonUtils.getPasswordInvalidityReason(password, LoginType.COMMAND);
-        if (reason != null) {
-            this.duplexHandler.write(SoundPackets.VILLAGER_NO);
-            this.sendMessage(reason);
-            return;
-        }
+        AlixCommonUtils.getPasswordInvalidityReasonAsync(password, LoginType.COMMAND, reason -> {
+            if (reason != null) {
+                this.duplexHandler.write(SoundPackets.VILLAGER_NO);
+                this.sendMessage(reason);
+                return;
+            }
 
-        this.pendingRegisterPassword = password;
-        this.pendingRegisterEmail = email;
-        EmailHandler.sendVerifyMail(this.connection, email, false, (conn, msg) -> this.sendMessage(msg));
-        this.sendMessage(Messages.getWithPrefix("register-email-verification-sent", email));
+            this.pendingRegisterPassword = password;
+            this.pendingRegisterEmail = email;
+            EmailHandler.sendVerifyMail(this.connection, email, false, (conn, msg) -> this.sendMessage(msg));
+            this.sendMessage(Messages.getWithPrefix("register-email-verification-sent", email));
+        });
     }
 
     //True while a 'require-email-in-register' registration is waiting on the player to confirm their email via
@@ -748,8 +756,9 @@ public final class LoginState implements VerifyState {
             //registerIfValid() re-validates the password and re-checks the terms gate - both already known-good
             //by this point, but going through the same central choke point as every other registration path
             //rather than duplicating (or bypassing) its checks is worth the redundant work.
-            PersistentUserData registered = this.registerIfValid(password, LoginType.COMMAND);
-            if (registered != null) registered.setEmail(email);
+            this.registerIfValid(password, LoginType.COMMAND, registered -> {
+                if (registered != null) registered.setEmail(email);
+            });
             return;
         }
 

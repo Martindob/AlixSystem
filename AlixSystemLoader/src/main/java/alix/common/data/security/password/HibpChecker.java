@@ -1,6 +1,7 @@
 package alix.common.data.security.password;
 
 import alix.common.AlixCommonMain;
+import alix.common.scheduler.AlixScheduler;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -9,10 +10,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * Checks a plaintext password against the HaveIBeenPwned breached-password database, using their
@@ -20,9 +18,9 @@ import java.util.concurrent.TimeUnit;
  * of the password's SHA-1 hash are ever sent over the network - the real password, and even its full
  * hash, never leave this server. Gated behind 'check-breached-passwords' in config.yml (default off,
  * since enabling it adds a network round-trip - up to CONNECT_TIMEOUT + REQUEST_TIMEOUT worst case - to
- * every registration/password change). See AlixCommonUtils#getPasswordInvalidityReason for the call site.
+ * every registration/password change). See AlixCommonUtils#getPasswordInvalidityReasonAsync for the call site.
  * <p>
- * Deliberately fails OPEN (returns false, i.e. "not breached") on any error - a DNS hiccup, a timeout, an
+ * Deliberately fails OPEN (reports false, i.e. "not breached") on any error - a DNS hiccup, a timeout, an
  * HTTP error, a malformed response - rather than blocking registration because a third-party service is
  * unreachable. The only thing this check can ever do is add friction for a password that's already known
  * to be publicly breached; it must never be the reason a legitimate player can't register at all.
@@ -36,33 +34,20 @@ public final class HibpChecker {
             .connectTimeout(CONNECT_TIMEOUT)
             .build();
 
-    //HttpClient#send() below is a genuinely blocking call (it parks its calling thread on socket I/O for up
-    //to CONNECT_TIMEOUT + REQUEST_TIMEOUT). isBreached() is called synchronously from places like a Netty
-    //event-loop thread or a live, per-keystroke Anvil GUI update, so that call must never run inline on
-    //whatever thread invokes isBreached() - doing so would stall every other connection/packet sharing that
-    //thread for the duration of the HTTP call. A virtual thread is exactly the right tool here: it's
-    //designed to be parked on blocking calls cheaply (no platform thread/OS thread is tied up while it
-    //waits), and a fresh one per call means a slow/unreachable API can never exhaust a shared, fixed-size
-    //pool the way a traditional Executors.newFixedThreadPool(...) could under load.
-    private static final ExecutorService BLOCKING_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
-
     /**
      * @param password the plaintext password to check - never sent anywhere; only a 5-character prefix
      *                  of its SHA-1 hash is
-     * @return true if this password appears in the HaveIBeenPwned breach corpus, false if it doesn't OR
-     * if the check itself failed for any reason (see class docs - this fails open)
+     * @param callback receives true if this password appears in the HaveIBeenPwned breach corpus, false if
+     *                 it doesn't OR if the check itself failed for any reason (see class docs - this fails
+     *                 open). Invoked on AlixScheduler's blocking-task executor - i.e. never on whatever
+     *                 thread called isBreachedAsync() itself, and never the calling thread blocked waiting
+     *                 for it either.
      */
-    public static boolean isBreached(String password) {
-        try {
-            return CompletableFuture.supplyAsync(() -> isBreachedBlocking(password), BLOCKING_EXECUTOR)
-                    .get(CONNECT_TIMEOUT.plus(REQUEST_TIMEOUT).toMillis() + 500, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            AlixCommonMain.logWarning("Could not reach the HaveIBeenPwned API to check a password (failing open, the password is allowed): " + e.getMessage());
-            return false;
-        }
+    public static void isBreachedAsync(String password, Consumer<Boolean> callback) {
+        AlixScheduler.asyncBlocking(() -> callback.accept(isBreachedBlocking(password)));
     }
 
-    //The actual blocking HTTP call - only ever invoked on BLOCKING_EXECUTOR's virtual threads, see isBreached().
+    //The actual blocking HTTP call - only ever invoked on AlixScheduler's asyncBlocking executor, see isBreachedAsync().
     private static boolean isBreachedBlocking(String password) {
         try {
             String hash = sha1Hex(password);

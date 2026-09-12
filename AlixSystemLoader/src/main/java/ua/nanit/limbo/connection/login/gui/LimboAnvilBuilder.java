@@ -2,6 +2,7 @@ package ua.nanit.limbo.connection.login.gui;
 
 import alix.common.data.LoginType;
 import alix.common.data.PersistentUserData;
+import alix.common.utils.AlixCommonUtils;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import ua.nanit.limbo.connection.ClientConnection;
 import ua.nanit.limbo.connection.login.LoginState;
@@ -50,7 +51,7 @@ public final class LimboAnvilBuilder extends AbstractAnvilBuilder<LimboAnvilBuil
                         this.spoofValidAccordingly();
                     return;
                 }
-                this.loginState.registerIfValid(password, LoginType.ANVIL);
+                this.loginState.registerIfValid(password, LoginType.ANVIL, AlixCommonUtils.EMPTY_CONSUMER);
                 return;
             default:
                 if (slot == RECOVER_SLOT && this.hasRecovery) {

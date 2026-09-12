@@ -4,6 +4,7 @@ import alix.common.data.AuthSetting;
 import alix.common.data.LoginParams;
 import alix.common.messages.Messages;
 import alix.common.scheduler.AlixScheduler;
+import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.collections.list.LoopList;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -94,7 +95,7 @@ public final class GoogleAuthGUI extends AlixGUI {
             }
         });
 
-        items[26] = new GUIItem(applyChangesItem, event -> changes.tryApply(user));
+        items[26] = new GUIItem(applyChangesItem, event -> changes.tryApply(user, AlixCommonUtils.EMPTY_CONSUMER));
         return items;
     }
 

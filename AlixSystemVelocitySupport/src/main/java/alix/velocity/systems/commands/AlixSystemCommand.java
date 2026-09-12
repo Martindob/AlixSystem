@@ -424,21 +424,22 @@ public final class AlixSystemCommand {
                                     }
 
                                     LoginType type = data.getLoginType();
-                                    String invalidityReason = AlixCommonUtils.getPasswordInvalidityReason(password, type);
-                                    if (invalidityReason != null) {
-                                        sendMessage(sender, invalidityReason);
-                                        return SINGLE_SUCCESS;
-                                    }
+                                    AlixCommonUtils.getPasswordInvalidityReasonAsync(password, type, invalidityReason -> {
+                                        if (invalidityReason != null) {
+                                            sendMessage(sender, invalidityReason);
+                                            return;
+                                        }
 
-                                    data.setPassword(password);
-                                    data.setLoginType(type);
-                                    String passFormatted = "*".repeat(Math.max(0, password.length() - 3)) + password.substring(Math.max(0, password.length() - 3));
-                                    sendMessage(sender, Messages.get("as-changepassword-success", data.getName(), passFormatted, type));
+                                        data.setPassword(password);
+                                        data.setLoginType(type);
+                                        String passFormatted = "*".repeat(Math.max(0, password.length() - 3)) + password.substring(Math.max(0, password.length() - 3));
+                                        sendMessage(sender, Messages.get("as-changepassword-success", data.getName(), passFormatted, type));
 
-                                    if (data.getLoginParams().getExtraLoginType() != null) {
-                                        sendMessage(sender, Messages.get("as-changepassword-extra-login-cleared"));
-                                        data.getLoginParams().setExtraLoginType(null);
-                                    }
+                                        if (data.getLoginParams().getExtraLoginType() != null) {
+                                            sendMessage(sender, Messages.get("as-changepassword-extra-login-cleared"));
+                                            data.getLoginParams().setExtraLoginType(null);
+                                        }
+                                    });
 
                                     return SINGLE_SUCCESS;
                                 })
@@ -464,21 +465,22 @@ public final class AlixSystemCommand {
                                                 return SINGLE_SUCCESS;
                                             }
 
-                                            String invalidityReason = AlixCommonUtils.getPasswordInvalidityReason(password, type);
-                                            if (invalidityReason != null) {
-                                                sendMessage(sender, invalidityReason);
-                                                return SINGLE_SUCCESS;
-                                            }
+                                            AlixCommonUtils.getPasswordInvalidityReasonAsync(password, type, invalidityReason -> {
+                                                if (invalidityReason != null) {
+                                                    sendMessage(sender, invalidityReason);
+                                                    return;
+                                                }
 
-                                            data.setPassword(password);
-                                            data.setLoginType(type);
-                                            String passFormatted = "*".repeat(Math.max(0, password.length() - 3)) + password.substring(Math.max(0, password.length() - 3));
-                                            sendMessage(sender, Messages.get("as-changepassword-success", data.getName(), passFormatted, type));
+                                                data.setPassword(password);
+                                                data.setLoginType(type);
+                                                String passFormatted = "*".repeat(Math.max(0, password.length() - 3)) + password.substring(Math.max(0, password.length() - 3));
+                                                sendMessage(sender, Messages.get("as-changepassword-success", data.getName(), passFormatted, type));
 
-                                            if (data.getLoginParams().getExtraLoginType() != null) {
-                                                sendMessage(sender, Messages.get("as-changepassword-extra-login-cleared"));
-                                                data.getLoginParams().setExtraLoginType(null);
-                                            }
+                                                if (data.getLoginParams().getExtraLoginType() != null) {
+                                                    sendMessage(sender, Messages.get("as-changepassword-extra-login-cleared"));
+                                                    data.getLoginParams().setExtraLoginType(null);
+                                                }
+                                            });
 
                                             return SINGLE_SUCCESS;
                                         })
