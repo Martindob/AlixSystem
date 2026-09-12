@@ -41,3 +41,9 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+//Unlike every other module here, this one had no toolchain pin at all, so it compiled with whatever JDK
+//is running the Gradle daemon itself rather than the project's intended version - on a daemon running a
+//very new JDK (e.g. 25), that can crash Lombok's annotation processor with an ExceptionInInitializerError
+//(Lombok's internal javac hooks not yet updated for that JDK), even though every other module compiles fine.
+java.toolchain.languageVersion.set(JavaLanguageVersion.of(Integer.parseInt(project.findProperty("toolchain-lang-version").toString())))
