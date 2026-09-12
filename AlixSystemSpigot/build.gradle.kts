@@ -177,6 +177,16 @@ if (project.findProperty("enable-preview")!! == "true") {
 }
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(Integer.parseInt(project.findProperty("toolchain-lang-version").toString())))
+
+//AlixAPISpigot's shadowJar is configured (archiveClassifier = "") to overwrite its own plain jar's output
+//file - that's the artifact this project actually needs on its compile classpath, but Gradle only knows to
+//wait for AlixAPISpigot's plain ":jar" task (the project dependency's default outgoing artifact), not its
+//shadowJar. Without this, Gradle 9's stricter validation flags it as an undeclared implicit dependency
+//("uses this output of task ':AlixAPI:AlixAPISpigot:shadowJar' without declaring..."), since nothing here
+//tells it that compileJava must wait for shadowJar to finish rewriting that file first.
+tasks.compileJava {
+    dependsOn(":AlixAPI:AlixAPISpigot:shadowJar")
+}
 tasks.test {
     useJUnitPlatform()
     failOnNoDiscoveredTests = false
