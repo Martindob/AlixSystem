@@ -106,3 +106,9 @@ if (project.findProperty("enable-preview")!! == "true") {
 tasks.test {
     useJUnitPlatform()
 }
+
+//Was missing entirely, unlike the root/Spigot/Velocity modules - meant this compiled with whatever JDK is
+//running the Gradle daemon itself instead of the project's intended version, which crashes Lombok's
+//annotation processor on a sufficiently new daemon JDK with a NoSuchFieldException on javac internals
+//(Lombok's internal hooks not yet updated for that JDK) - see AlixAPI's build.gradle.kts for the same fix.
+java.toolchain.languageVersion.set(JavaLanguageVersion.of(Integer.parseInt(project.findProperty("toolchain-lang-version").toString())))

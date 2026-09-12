@@ -6,7 +6,7 @@ import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 import java.lang.reflect.Constructor;
 import java.util.concurrent.ThreadFactory;

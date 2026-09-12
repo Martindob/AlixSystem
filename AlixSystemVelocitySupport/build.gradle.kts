@@ -161,6 +161,11 @@ if (project.findProperty("enable-preview")!! == "true") {
     }
 }
 
+//Was missing entirely, unlike the root/Spigot module - meant this compiled with whatever JDK is running
+//the Gradle daemon itself instead of the project's intended version, which crashes Lombok's annotation
+//processor on a sufficiently new daemon JDK (see AlixSystemLoader's build.gradle.kts for the exact error).
+java.toolchain.languageVersion.set(JavaLanguageVersion.of(Integer.parseInt(project.findProperty("toolchain-lang-version").toString())))
+
 /*
 publishing {
     publications {
