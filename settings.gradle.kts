@@ -8,6 +8,15 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
+//Lets Gradle download a matching JDK on its own (via the Foojay Disco API) whenever a required toolchain
+//version (e.g. 21, see 'toolchain-lang-version' in gradle.properties) isn't already installed locally -
+//without this, a missing JDK fails with "Toolchain download repositories have not been configured"
+//instead of just being fetched automatically.
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
+}
+
 rootProject.name = "AlixSystem"
 include("AlixSystemSpigot")
 include("AlixSystemLoader")
