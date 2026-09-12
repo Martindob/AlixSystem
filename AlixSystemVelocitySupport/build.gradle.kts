@@ -1,4 +1,5 @@
 import java.net.URI
+import org.gradle.api.GradleException
 
 plugins {
     id("java")
@@ -35,9 +36,26 @@ fun resolveVelocityJar(): java.io.File {
     val cacheDir = gradle.gradleUserHomeDir.resolve("caches/alix-velocity-jars")
     cacheDir.mkdirs()
 
+    val buildsUrl = "https://fill.papermc.io/v3/projects/velocity/versions/$velocityTargetVersion/builds"
     val json = groovy.json.JsonSlurper()
     @Suppress("UNCHECKED_CAST")
-    val builds = json.parse(URI("https://fill.papermc.io/v3/projects/velocity/versions/$velocityTargetVersion/builds").toURL()) as List<Map<*, *>>
+    val builds = try {
+        json.parse(URI(buildsUrl).toURL()) as List<Map<*, *>>
+    } catch (e: Exception) {
+        throw GradleException(
+            "Could not fetch Velocity builds for version '$velocityTargetVersion' from $buildsUrl - " +
+                    "PaperMC may have stopped publishing that version. Bump 'velocityTargetVersion' in this " +
+                    "file (or set 'velocity-target-version' in your own gradle.properties) to a version " +
+                    "still listed at https://fill.papermc.io/v3/projects/velocity", e
+        )
+    }
+    if (builds.isEmpty())
+        throw GradleException(
+            "PaperMC lists no builds at all for Velocity version '$velocityTargetVersion' - " +
+                    "bump 'velocityTargetVersion' in this file (or set 'velocity-target-version' in your " +
+                    "own gradle.properties) to a version still listed at " +
+                    "https://fill.papermc.io/v3/projects/velocity"
+        )
     val latestBuild = builds.first()//newest build first, per PaperMC's own ordering
     @Suppress("UNCHECKED_CAST")
     val downloads = latestBuild["downloads"] as Map<*, *>
