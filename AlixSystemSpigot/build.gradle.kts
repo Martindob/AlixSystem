@@ -72,6 +72,11 @@ tasks.shadowJar {
     destinationDirectory = file(project.findProperty("build-dir") as String)
     archiveBaseName.set("AlixSystem")
     archiveClassifier.set("")//w pizde z z tym "-all" suffixem
+    //mergeServiceFiles() below only gets a chance to merge a META-INF/services/* file (e.g. java.sql.Driver,
+    //registering both mariadb-java-client's and postgresql's JDBC drivers) if a duplicate copy of it even
+    //reaches the transformer - the task's own default DuplicatesStrategy (EXCLUDE) silently drops every
+    //duplicate before that, which would leave only one of the two drivers registered via ServiceLoader.
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     val prefix = "alix.libs"
     var list = listOf(
         "io.github.retrooper.packetevents",
