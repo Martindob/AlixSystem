@@ -15,10 +15,13 @@ val isUber = false
 group = "AlixSystemVelocitySupport"
 version = project.findProperty("alix-velocity-version")!!
 
-//The exact Velocity version LINE to compile against - bump this when PaperMC cuts a new major/minor
-//Velocity version (e.g. "4.2.0-SNAPSHOT"); the build number within it is always resolved to the newest
-//one available, so this never needs bumping just because PaperMC published another build.
-val velocityTargetVersion = "4.1.2-SNAPSHOT"
+//The exact Velocity version LINE to compile against - defaults to the latest, but can be overridden per-
+//machine via 'velocity-target-version' in your own gradle.properties (e.g. to build against an older,
+//more widely-deployed Velocity release for backwards-compatibility testing - pair it with a matching,
+//lower 'velocity-toolchain-lang-version' below, since an older Velocity build needs an older JDK too). The
+//build NUMBER within whichever version this resolves to is always the newest one PaperMC has published,
+//so this never needs bumping just because PaperMC shipped another build of the same version.
+val velocityTargetVersion = project.findProperty("velocity-target-version") as? String ?: "4.1.2-SNAPSHOT"
 
 //There's no publicly consumable Maven artifact exposing Velocity's internals (only the much smaller,
 //public "velocity-api" is published that way, which doesn't have what this plugin needs to hook into
@@ -171,10 +174,10 @@ tasks.test {
 //This module alone can't just use the project's shared 'toolchain-lang-version' (21, matching Spigot's own
 //baseline) - PaperMC's own Velocity builds are themselves compiled targeting a newer JDK (build 27 of
 //4.1.2-SNAPSHOT ships class file version 69, i.e. Java 25), and an older JDK's javac can't read a newer
-//one's class files at all ("class file has wrong version"). Since the plugin is meant to always track
-//PaperMC's latest Velocity build (see resolveVelocityJar() above), this needs to track whatever JDK
-//baseline that latest build itself requires, independently of the rest of the project - bump this if a
-//future Velocity build moves to something newer still.
+//one's class files at all ("class file has wrong version"). Defaults to 25 to match the latest Velocity
+//(see velocityTargetVersion above) - override 'velocity-toolchain-lang-version' in your own
+//gradle.properties if you've also lowered velocityTargetVersion to an older Velocity release that needs
+//an older JDK instead (e.g. 21 alongside a 3.x Velocity version).
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(Integer.parseInt(project.findProperty("velocity-toolchain-lang-version") as? String ?: "25")))
 
 /*
