@@ -48,6 +48,8 @@ public final class NanoLimbo {
     //@DebugOnly
     public static final boolean enableFingerprinting = false;
     //@DebugOnly
+    public static final boolean enableDialogLogin = false;
+    //@DebugOnly
     public static final boolean logPos = false;//of(false);
     public static final boolean removeTimeout = true;
     public static final boolean centerSpawn = false;

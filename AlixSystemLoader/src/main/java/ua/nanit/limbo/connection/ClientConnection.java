@@ -2,6 +2,8 @@ package ua.nanit.limbo.connection;
 
 import alix.common.connection.profiler.ConnectionStage;
 import alix.common.connection.profiler.LimboJoinProfiler;
+import alix.common.data.fingerprinting.Fingerprint;
+import alix.common.data.fingerprinting.FingerprintBuilder;
 import alix.common.data.fingerprinting.FingerprintManager;
 import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.other.annotation.OptimizationCandidate;
@@ -11,6 +13,7 @@ import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
+import io.netty.util.concurrent.ScheduledFuture;
 import ua.nanit.limbo.NanoLimbo;
 import ua.nanit.limbo.connection.captcha.blocks.BlockPackets;
 import ua.nanit.limbo.connection.pipeline.PacketDuplexHandler;
@@ -35,6 +38,7 @@ import ua.nanit.limbo.server.Log;
 import ua.nanit.limbo.server.data.TitlePacketSnapshot;
 
 import java.net.InetAddress;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -416,16 +420,59 @@ public final class ClientConnection {
             writePacket(PacketSnapshots.PACKET_REGISTRY_DATA);
         }
 
-        if (NanoLimbo.enableFingerprinting) {
-            //this.writeAndFlushPacket(FingerprintManager.NOT_LOADED_HIDER);
-            this.writeAndFlushPacket(FingerprintManager.INVALID_URLS[0]);
+        if (NanoLimbo.enableFingerprinting && this.startFingerprinting())
             return;
+
+        this.finishConfig();
+    }
+
+    private FingerprintBuilder fingerprintBuilder;
+    private ScheduledFuture<?> fingerprintTimeout;
+
+    //EXPERIMENTAL - see NanoLimbo#enableFingerprinting and FingerprintManager's own class javadoc.
+    //Sends every configured probe at once and defers finishConfig() until either every probe has resolved
+    //(see onFingerprintProbeResponse) or a timeout passes - a client that never responds to one of these
+    //(a very old/modified client, or one that has resource-pack prompts disabled entirely) must never be
+    //able to get stuck in the configuration phase forever, so this always fails open.
+    //
+    //@return true if fingerprinting actually started (finishConfig() will be called later, once resolved
+    //or timed out) - false if there's nothing configured to probe for, so the caller should proceed as normal
+    private boolean startFingerprinting() {
+        if (FingerprintManager.PROBE_COUNT == 0) return false;
+
+        this.fingerprintBuilder = new FingerprintBuilder(FingerprintManager.PROBE_COUNT);
+        for (PacketSnapshot probe : FingerprintManager.PROBES) this.writePacket(probe);
+        this.flush();
+
+        this.fingerprintTimeout = this.channel.eventLoop().schedule(() -> {
+            if (this.fingerprintBuilder == null) return;//already resolved in the meantime
+            Log.error("Resource-pack fingerprinting timed out for " + this.gameProfile.getUsername() + " - proceeding without a complete fingerprint.");
+            this.fingerprintBuilder = null;
+            this.finishConfig();
+        }, 5, TimeUnit.SECONDS);
+
+        return true;
+    }
+
+    //Called by PacketConfigInResourcePackResponse for every terminal probe response.
+    public void onFingerprintProbeResponse(UUID probeId, boolean hit) {
+        if (this.fingerprintBuilder == null) return;//already resolved/timed out, or this UUID belongs to a probe from a previous, already-finished attempt
+
+        Integer idx = FingerprintManager.getIndex(probeId);
+        if (idx == null) return;//not one of ours
+
+        if (!this.fingerprintBuilder.resolve(idx, hit)) return;//still waiting on other probes
+
+        Fingerprint fingerprint = this.fingerprintBuilder.getFingerprint();
+        this.fingerprintBuilder = null;
+        if (this.fingerprintTimeout != null) {
+            this.fingerprintTimeout.cancel(false);
+            this.fingerprintTimeout = null;
         }
 
-        /*if (this.verifyState.isLoginState() && this.clientVersion.moreOrEqual(Version.V1_21_6)) {
-            this.writeAndFlushPacket(PacketConfigOutShowDialog.of("hałasssssss"));
-            return;
-        }*/
+        //Not yet wired into anything (e.g. per-account storage/comparison for ban-evasion detection) -
+        //completing that is a separate, deliberate follow-up, not part of getting the packet exchange itself working.
+        Log.error("Resource-pack fingerprint resolved for " + this.gameProfile.getUsername() + ": " + fingerprint);
 
         this.finishConfig();
     }

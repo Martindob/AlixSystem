@@ -1,0 +1,33 @@
+#-----------------------------------------------------------------------------------------------#
+#  Resource-pack client fingerprinting - EXPERIMENTAL. There is deliberately no config.yml       #
+#  switch for this (see NanoLimbo#enableFingerprinting, a hardcoded 'false' requiring a source    #
+#  change + rebuild to turn on) - the underlying Minecraft protocol feature this uses is easy to  #
+#  get subtly wrong, and it has not yet been verified against a real client. Populating this      #
+#  file alone does NOT enable anything.                                                            #
+#
+#  WHAT THIS DOES: each non-comment, non-blank line below is one SHA-1 hash (40 hex chars) of a
+#  resource pack. On join, this server asks a client's Minecraft install "do you already have a
+#  resource pack with exactly this content cached?" for every hash listed - Minecraft caches
+#  packs by content hash and skips re-downloading one it already has, regardless of which server
+#  it originally came from, so a "yes" reveals nothing about WHICH other server the pack came
+#  from, only that the client's cache already contains that exact content. The pattern of
+#  hits/misses across every hash below becomes a stable fingerprint of the physical client
+#  install itself - independent of which Minecraft account is used to connect - primarily useful
+#  for spotting the same client reconnecting under a different account (e.g. ban evasion).
+#
+#  This check never actually serves the real pack content to anyone and does not require you to
+#  host anything: each probe uses a deliberately unreachable address together with the real
+#  hash, so a "miss" fails immediately without ever attempting a real download, and a "hit" is
+#  answered entirely from the client's own local cache before it would even try the address. You
+#  only need to know a real SHA-1 you're checking for - not host the file yourself. (A stronger,
+#  two-stage version that also verifies a "miss" via a real download is not implemented here.)
+#
+#  PRIVACY NOTE: this probes what OTHER servers' content a player's client has previously
+#  downloaded and cached, without asking them first - only enable this if you're comfortable
+#  doing that and have disclosed it appropriately (e.g. in your server's rules/privacy policy).
+#
+#  Ships empty on purpose - add one SHA-1 per line below once you're ready to test. A reasonable
+#  starting point is the hash of a resource pack bundled with a popular plugin that many servers
+#  use unmodified (so more players plausibly already have it cached) - pick your own; nothing is
+#  bundled here pointing at any specific third party.
+#-----------------------------------------------------------------------------------------------#
