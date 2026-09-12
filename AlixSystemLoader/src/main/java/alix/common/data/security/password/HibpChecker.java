@@ -9,6 +9,10 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Checks a plaintext password against the HaveIBeenPwned breached-password database, using their
@@ -32,6 +36,16 @@ public final class HibpChecker {
             .connectTimeout(CONNECT_TIMEOUT)
             .build();
 
+    //HttpClient#send() below is a genuinely blocking call (it parks its calling thread on socket I/O for up
+    //to CONNECT_TIMEOUT + REQUEST_TIMEOUT). isBreached() is called synchronously from places like a Netty
+    //event-loop thread or a live, per-keystroke Anvil GUI update, so that call must never run inline on
+    //whatever thread invokes isBreached() - doing so would stall every other connection/packet sharing that
+    //thread for the duration of the HTTP call. A virtual thread is exactly the right tool here: it's
+    //designed to be parked on blocking calls cheaply (no platform thread/OS thread is tied up while it
+    //waits), and a fresh one per call means a slow/unreachable API can never exhaust a shared, fixed-size
+    //pool the way a traditional Executors.newFixedThreadPool(...) could under load.
+    private static final ExecutorService BLOCKING_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+
     /**
      * @param password the plaintext password to check - never sent anywhere; only a 5-character prefix
      *                  of its SHA-1 hash is
@@ -39,6 +53,17 @@ public final class HibpChecker {
      * if the check itself failed for any reason (see class docs - this fails open)
      */
     public static boolean isBreached(String password) {
+        try {
+            return CompletableFuture.supplyAsync(() -> isBreachedBlocking(password), BLOCKING_EXECUTOR)
+                    .get(CONNECT_TIMEOUT.plus(REQUEST_TIMEOUT).toMillis() + 500, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            AlixCommonMain.logWarning("Could not reach the HaveIBeenPwned API to check a password (failing open, the password is allowed): " + e.getMessage());
+            return false;
+        }
+    }
+
+    //The actual blocking HTTP call - only ever invoked on BLOCKING_EXECUTOR's virtual threads, see isBreached().
+    private static boolean isBreachedBlocking(String password) {
         try {
             String hash = sha1Hex(password);
             String prefix = hash.substring(0, 5);

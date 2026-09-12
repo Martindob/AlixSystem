@@ -379,6 +379,10 @@ public final class AlixUtils {
         return AlixCommonUtils.getPasswordInvalidityReason(password, type);
     }
 
+    public static String getPasswordInvalidityReason(String password, LoginType type, boolean checkBreach) {
+        return AlixCommonUtils.getPasswordInvalidityReason(password, type, checkBreach);
+    }
+
     public static String formatMillis(long millis) {
         //if (millis % 1000 == 0) return millis + " second" + (millis / 1000 > 1 ? "s" : "");
         float div = millis / 1000f;

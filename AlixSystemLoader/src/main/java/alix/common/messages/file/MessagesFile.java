@@ -20,6 +20,7 @@ public final class MessagesFile extends AlixFileManager {
     @Override
     protected void loadLine(String line) {
         //String r = line.replaceAll("\"", "");//no need, as it isn't a Yaml file anymore
+        if (line.trim().startsWith("#")) return;//comment line, e.g. an explanatory header in messages.properties - not a message key
         try {
             char separator = AlixCommonMain.MAIN_CLASS_INSTANCE.getEngineParams().messagesSeparator();
             String[] a = line.split(separator + " ", 2);

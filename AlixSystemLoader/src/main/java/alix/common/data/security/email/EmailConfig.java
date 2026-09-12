@@ -15,6 +15,13 @@ public final class EmailConfig {
     public final boolean enableWebVerification;
     public final String webVerificationBindAddress, webVerificationPublicUrl;
     public final int webVerificationPort, webVerificationTokenExpiryMinutes;
+    //the plain-text (no color codes - this renders in a browser, not in-game) title/message shown on each
+    //outcome page of the web verification link, configurable since they're seen by a player's browser and
+    //an operator may want to reword/rebrand them
+    public final String webVerificationPageInvalidTitle, webVerificationPageInvalidMessage,
+            webVerificationPageErrorTitle, webVerificationPageErrorNotFoundMessage, webVerificationPageErrorGenericMessage,
+            webVerificationPageSuccessTitle, webVerificationPageSuccessMessage,
+            webVerificationPageMethodNotAllowedTitle, webVerificationPageMethodNotAllowedMessage;
 
     EmailConfig() {
         var file = AlixFileManager.getOrCreatePluginFile("email-config.yml", AlixFileManager.FileType.CONFIG);
@@ -31,6 +38,15 @@ public final class EmailConfig {
         this.webVerificationPort = config.getInt("web-verification-port", 8091);
         this.webVerificationPublicUrl = config.getString("web-verification-public-url", "");
         this.webVerificationTokenExpiryMinutes = config.getInt("web-verification-token-expiry-minutes", 30);
+        this.webVerificationPageInvalidTitle = config.getString("web-verification-page-invalid-title", "Link invalid or expired");
+        this.webVerificationPageInvalidMessage = config.getString("web-verification-page-invalid-message", "This verification link is no longer valid. Please request a new one in-game via /account sendverifyemail.");
+        this.webVerificationPageErrorTitle = config.getString("web-verification-page-error-title", "Something went wrong");
+        this.webVerificationPageErrorNotFoundMessage = config.getString("web-verification-page-error-not-found-message", "Your account could not be found or the email could not be saved. Please try again in-game.");
+        this.webVerificationPageErrorGenericMessage = config.getString("web-verification-page-error-generic-message", "Please try again in-game.");
+        this.webVerificationPageSuccessTitle = config.getString("web-verification-page-success-title", "Email verified!");
+        this.webVerificationPageSuccessMessage = config.getString("web-verification-page-success-message", "Your email has been successfully verified. You can now close this page.");
+        this.webVerificationPageMethodNotAllowedTitle = config.getString("web-verification-page-method-not-allowed-title", "Method not allowed");
+        this.webVerificationPageMethodNotAllowedMessage = config.getString("web-verification-page-method-not-allowed-message", "Only GET requests are supported.");
 
         //Create the "email-templates" (+ "images") folder right away rather than only as a side effect of
         //actually sending a custom-templated email - see EmailTemplateLoader#ensureFoldersExist() for why

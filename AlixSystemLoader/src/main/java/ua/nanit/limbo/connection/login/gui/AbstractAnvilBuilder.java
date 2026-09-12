@@ -1,6 +1,7 @@
 package ua.nanit.limbo.connection.login.gui;
 
 import alix.common.login.skull.SkullTextures;
+import alix.common.messages.Messages;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
 import io.netty.channel.Channel;
@@ -21,17 +22,17 @@ public abstract class AbstractAnvilBuilder<T extends AbstractAnvilBuilder> {
     //the Messages/i18n system entirely - unlike RECOVER_ITEM just below, which already went through
     //Messages.get correctly. Now routed through the same lang-key mechanism so these follow the selected
     //"language" config option instead of always showing English.
-    public static final ItemStack GO_BACK_ITEM = ofSkull(alix.common.messages.Messages.get("gui-go-back"), SkullTextures.GO_BACK);
-    public static final ItemStack RECOVER_ITEM = of(ItemTypes.PAPER, alix.common.messages.Messages.get("gui-recover-account"));
+    public static final ItemStack GO_BACK_ITEM = ofSkull(Messages.get("gui-go-back"), SkullTextures.GO_BACK);
+    public static final ItemStack RECOVER_ITEM = of(ItemTypes.PAPER, Messages.get("gui-recover-account"));
     public static final int RECOVER_SLOT = 8;
     private static final String USER_INPUT_STR = "";
     private static final ItemStack[] itemsValidWithCancel, itemsValidWithLeave, itemsInvalidWithCancel, itemsInvalidWithLeave;
 
     static {
         ItemStack USER_INPUT = of(ItemTypes.PAPER, USER_INPUT_STR);
-        ItemStack LEAVE_BUTTON = of(ItemTypes.BLACK_WOOL, alix.common.messages.Messages.get("gui-leave"));
-        ItemStack CONFIRM_BUTTON = of(ItemTypes.LIME_WOOL, alix.common.messages.Messages.get("gui-confirm"));
-        ItemStack INVALID_PASSWORD = of(ItemTypes.RED_WOOL, alix.common.messages.Messages.get("gui-invalid-password"));
+        ItemStack LEAVE_BUTTON = of(ItemTypes.BLACK_WOOL, Messages.get("gui-leave"));
+        ItemStack CONFIRM_BUTTON = of(ItemTypes.LIME_WOOL, Messages.get("gui-confirm"));
+        ItemStack INVALID_PASSWORD = of(ItemTypes.RED_WOOL, Messages.get("gui-invalid-password"));
         ItemStack CANCEL = GO_BACK_ITEM;
 
         itemsValidWithCancel = new ItemStack[]{USER_INPUT, CANCEL, CONFIRM_BUTTON};

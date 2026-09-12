@@ -121,9 +121,18 @@ public final class VelocityAlixMain implements AlixLoggerProvider, AlixMain {
 
     private static final class ParamImpl implements Params {
 
-        //supported message-language codes, matching the file names under the "langs" resource folder (e.g. "en" -> langs/en.yml)
+        //supported message-language codes; every one except DEFAULT_LANGUAGE maps to a bundled, read-only
+        //translation under the "langs" resource folder (e.g. "cs" -> langs/cs.properties - see
+        //messagesFileName() and FileUpdater's VELOCITY branch for why these are never merge-preserved the
+        //way messages.properties is)
         private static final java.util.Set<String> SUPPORTED_LANGUAGES = java.util.Set.of("en", "cs");
         private static final String DEFAULT_LANGUAGE = "en";
+        //The default/canonical messages file - unlike a "langs/<code>.properties" bundled translation, this
+        //one is a normal, merge-updated config file (like config.yml): fully customizable, and every edit
+        //survives a plugin update. Kept at the top level (not under "langs/") for backwards compatibility -
+        //this is the exact file name/role this plugin has always used for "language: en", predating the
+        //"langs/" folder entirely, so any pre-existing customization of it keeps working unchanged.
+        private static final String DEFAULT_MESSAGES_FILE = "messages.properties";
 
         @Override
         public String messagesFileName() {
@@ -132,7 +141,7 @@ public final class VelocityAlixMain implements AlixLoggerProvider, AlixMain {
                 AlixCommonMain.logWarning("Unsupported 'language' value '" + language + "' in config.yml, falling back to '" + DEFAULT_LANGUAGE + "'. Supported values: " + SUPPORTED_LANGUAGES);
                 language = DEFAULT_LANGUAGE;
             }
-            return "langs/" + language + ".yml";
+            return language.equals(DEFAULT_LANGUAGE) ? DEFAULT_MESSAGES_FILE : "langs/" + language + ".properties";
         }
 
         @Override
@@ -142,7 +151,7 @@ public final class VelocityAlixMain implements AlixLoggerProvider, AlixMain {
 
         @Override
         public String referenceMessagesFileName() {
-            return "langs/" + DEFAULT_LANGUAGE + ".yml";
+            return DEFAULT_MESSAGES_FILE;
         }
 
         private ParamImpl() {

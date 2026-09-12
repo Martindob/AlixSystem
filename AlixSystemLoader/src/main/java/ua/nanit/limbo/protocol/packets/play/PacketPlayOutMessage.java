@@ -12,10 +12,6 @@ import ua.nanit.limbo.protocol.registry.Version;
 
 public final class PacketPlayOutMessage implements PacketOut {
 
-    private String message;
-    //Set instead of 'message' when the caller needs rich formatting the legacy '&'/'§'-coded string format
-    //can't express, e.g. a clickable link (see LoginState#sendTermsPrompt()) - takes priority over 'message'
-    //in encode() when present.
     private Component component;
 
     public PacketPlayOutMessage() {
@@ -25,8 +21,14 @@ public final class PacketPlayOutMessage implements PacketOut {
         return withMessage(message).toSnapshot();
     }
 
+    /**
+     * Parses the legacy '&amp;'/'§'-coded string into a Component once, immediately - the resulting
+     * Component is reused as-is for every client version's encode() call (see {@link
+     * MessageWrapper#parseLegacy(String)}), instead of re-parsing the same string on every call the way
+     * keeping a separate String field around would require.
+     */
     public static PacketPlayOutMessage withMessage(String message) {
-        return new PacketPlayOutMessage().setMessage(AlixFormatter.translateColors(message));
+        return withComponent(MessageWrapper.parseLegacy(AlixFormatter.translateColors(message)));
     }
 
     /**
@@ -35,11 +37,6 @@ public final class PacketPlayOutMessage implements PacketOut {
      */
     public static PacketPlayOutMessage withComponent(Component component) {
         return new PacketPlayOutMessage().setComponent(component);
-    }
-
-    public PacketPlayOutMessage setMessage(String message) {
-        this.message = message;
-        return this;
     }
 
     public PacketPlayOutMessage setComponent(Component component) {
@@ -55,9 +52,7 @@ public final class PacketPlayOutMessage implements PacketOut {
     @Override
     public void encode(ByteMessage msg, Version version) {
         var retrooperVersion = version.getRetrooperVersion();
-        var wrapper = this.component != null
-                ? MessageWrapper.createWrapper(this.component, false, retrooperVersion)
-                : MessageWrapper.createWrapper(this.message, false, retrooperVersion);
+        var wrapper = MessageWrapper.createWrapper(this.component, false, retrooperVersion);
         WrapperUtils.writeNoID(wrapper, msg.getBuf(), retrooperVersion);
     }
 }

@@ -37,9 +37,21 @@ public final class FileUpdater {
                 break;
             case VELOCITY:
                 var params = VelocityAlixMain.instance.getEngineParams();
+                String velocityMessagesFile = params.messagesFileName();
 
-                //messages.properties
-                updateFile(params.messagesFileName(), params.messagesSeparator());
+                if (velocityMessagesFile.startsWith("langs/")) {
+                    //A bundled, ready-made translation (anything other than the default "messages.properties")
+                    //is NOT a customizable config file - it's fully overwritten with the newest jar-bundled
+                    //version on every update, discarding any direct edits, unlike every other file here. An
+                    //operator who wants to customize player-facing text should edit messages.properties with
+                    //"language: en" instead (see its own header comment) - that file DOES get the normal
+                    //merge-preserving treatment just below.
+                    File dest = new File(AlixCommonMain.MAIN_CLASS_INSTANCE.getDataFolder(), velocityMessagesFile);
+                    AlixFileManager.writeJarCompiledFileIntoDest(dest, velocityMessagesFile);
+                } else {
+                    //messages.properties
+                    updateFile(velocityMessagesFile, params.messagesSeparator());
+                }
 
                 //gui-menus/*.yml - each menu's config lives as flat "items.<id>.<setting>"-style keys (see
                 //the files themselves), the exact same shape as config.yml's "key: value" + dash-list lines,
@@ -82,7 +94,7 @@ public final class FileUpdater {
         if (!file.exists()) {
             //note: don't call file.createNewFile() here - it fails with an IOException on Windows
             //("system cannot find the path specified") whenever the file lives in a subdirectory
-            //(e.g. "langs/en.yml") that hasn't been created yet, since createNewFile() never makes
+            //(e.g. "gui-menus/account.yml") that hasn't been created yet, since createNewFile() never makes
             //parent directories. writeJarCompiledFileIntoDest() below already does the equivalent
             //(parent.mkdirs() + createNewFile()) safely, so just let it create the file too.
             AlixFileManager.writeJarCompiledFileIntoDest(file, name);//writes the newest info into the file
@@ -90,9 +102,9 @@ public final class FileUpdater {
         }
 
         //Was built from splitName[0] (derived from the full, possibly-subdirectory-containing 'name' argument,
-        //e.g. "langs/en" for "langs/en.yml") - since file.getParent() is ALREADY that subdirectory, that
-        //produced a doubled-up path ("<data folder>/langs/langs/en-copy.yml") whose own parent
-        //("<data folder>/langs/langs/") doesn't exist, so tempFile.createNewFile() below threw "system cannot
+        //e.g. "gui-menus/account" for "gui-menus/account.yml") - since file.getParent() is ALREADY that
+        //subdirectory, that produced a doubled-up path ("<data folder>/gui-menus/gui-menus/account-copy.yml")
+        //whose own parent ("<data folder>/gui-menus/gui-menus/") doesn't exist, so tempFile.createNewFile() below threw "system cannot
         //find the path specified" on every restart once the real per-language file had been created once (a
         //fresh install never hit this, since a missing file takes the branch above instead). Use the file's
         //own simple name instead, which is already relative to the correct parent either way.

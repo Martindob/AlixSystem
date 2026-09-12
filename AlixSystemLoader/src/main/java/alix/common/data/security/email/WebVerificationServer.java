@@ -4,19 +4,36 @@ import alix.common.AlixCommonMain;
 import alix.common.data.PersistentUserData;
 import alix.common.data.file.UserFileManager;
 import alix.common.utils.AlixCache;
+import alix.common.utils.netty.NettyServerTransport;
 import com.google.common.cache.Cache;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.util.CharsetUtil;
+import io.netty.util.concurrent.DefaultThreadFactory;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -24,6 +41,11 @@ import java.util.concurrent.TimeUnit;
  * instead of having to type a code into the game. Disabled by default (see 'enable-web-verification' in
  * email-config.yml) since it requires a network port that must be reachable from the internet - the operator is
  * expected to set 'web-verification-public-url' correctly (typically behind their own reverse proxy/domain).
+ * <p>
+ * Built directly on Netty (rather than the JDK's com.sun.net.httpserver) since Netty is already a hard
+ * dependency of the host proxy this plugin runs on - reusing it avoids pulling in a second, separate HTTP
+ * stack, and lets this pick up the fastest transport actually available (io_uring/epoll on Linux, see
+ * {@link NettyServerTransport}) instead of the JDK server's plain blocking-socket-per-thread model.
  * <p>
  * Security notes: tokens are single-use, generated via SecureRandom (32 random bytes - not the same, much weaker,
  * generator used for the in-game 6-digit code), and expire automatically after 'web-verification-token-expiry-minutes'.
@@ -39,8 +61,8 @@ public final class WebVerificationServer {
             .expireAfterWrite(Math.max(1, EmailConfig.INSTANCE.webVerificationTokenExpiryMinutes), TimeUnit.MINUTES)
             .build();
 
-    private static HttpServer server;
-    private static ExecutorService executor;
+    private static EventLoopGroup bossGroup, workerGroup;
+    private static Channel serverChannel;
 
     private WebVerificationServer() {
     }
@@ -50,19 +72,33 @@ public final class WebVerificationServer {
      * a no-op if already running or disabled. Should be called once on plugin enable.
      */
     public static synchronized void startIfEnabled() {
-        if (!EmailConfig.INSTANCE.enableWebVerification || server != null) return;
+        if (!EmailConfig.INSTANCE.enableWebVerification || serverChannel != null) return;
+
+        NettyServerTransport transport = NettyServerTransport.INSTANCE;
+        var address = new InetSocketAddress(EmailConfig.INSTANCE.webVerificationBindAddress, EmailConfig.INSTANCE.webVerificationPort);
 
         try {
-            var address = new InetSocketAddress(EmailConfig.INSTANCE.webVerificationBindAddress, EmailConfig.INSTANCE.webVerificationPort);
-            server = HttpServer.create(address, 0);
-            executor = Executors.newFixedThreadPool(4);
-            server.setExecutor(executor);
-            server.createContext("/verify", WebVerificationServer::handle);
-            server.start();
-            AlixCommonMain.logInfo("Web email verification server started on " + address);
+            bossGroup = transport.newEventLoopGroup(1, new DefaultThreadFactory("alix-web-verify-boss"));
+            workerGroup = transport.newEventLoopGroup(2, new DefaultThreadFactory("alix-web-verify-worker"));
+
+            ServerBootstrap bootstrap = new ServerBootstrap()
+                    .group(bossGroup, workerGroup)
+                    .channel(transport.serverChannelClass)
+                    .option(ChannelOption.SO_BACKLOG, 128)
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel ch) {
+                            ch.pipeline().addLast(new HttpServerCodec());
+                            ch.pipeline().addLast(new HttpObjectAggregator(1 << 16));
+                            ch.pipeline().addLast(new RequestHandler());
+                        }
+                    });
+
+            serverChannel = bootstrap.bind(address).sync().channel();
+            AlixCommonMain.logInfo("Web email verification server started on " + address + " (transport: " + transport.name + ")");
         } catch (Exception e) {
             AlixCommonMain.logWarning("Could not start the web email verification server (is the port already in use?): " + e.getMessage());
-            server = null;
+            stop();
         }
     }
 
@@ -70,13 +106,17 @@ public final class WebVerificationServer {
      * Stops the webserver, if running. Should be called once on plugin disable.
      */
     public static synchronized void stop() {
-        if (server != null) {
-            server.stop(0);
-            server = null;
+        if (serverChannel != null) {
+            serverChannel.close();
+            serverChannel = null;
         }
-        if (executor != null) {
-            executor.shutdownNow();
-            executor = null;
+        if (bossGroup != null) {
+            bossGroup.shutdownGracefully();
+            bossGroup = null;
+        }
+        if (workerGroup != null) {
+            workerGroup.shutdownGracefully();
+            workerGroup = null;
         }
     }
 
@@ -107,55 +147,52 @@ public final class WebVerificationServer {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private static void handle(HttpExchange exchange) {
-        try {
-            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-                respond(exchange, 405, page("Method not allowed", "Only GET requests are supported.", false));
-                return;
-            }
+    private static final class RequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-            String token = queryParam(exchange.getRequestURI().getRawQuery(), "token");
-            //single-use: the token is removed as soon as it's looked up, regardless of outcome
-            PendingWebVerification pending = token != null ? TOKENS.asMap().remove(token) : null;
-
-            if (pending == null) {
-                respond(exchange, 400, page("Link invalid or expired", "This verification link is no longer valid. Please request a new one in-game via /account sendverifyemail.", false));
-                return;
-            }
-
-            PersistentUserData data = UserFileManager.get(pending.playerName());
-            if (data == null || !data.setEmail(pending.email())) {
-                respond(exchange, 500, page("Something went wrong", "Your account could not be found or the email could not be saved. Please try again in-game.", false));
-                return;
-            }
-
-            respond(exchange, 200, page("Email verified!", "Your email has been successfully verified. You can now close this page.", true));
-        } catch (Exception e) {
-            AlixCommonMain.logWarning("Error handling a web verification request: " + e.getMessage());
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
             try {
-                respond(exchange, 500, page("Something went wrong", "Please try again in-game.", false));
-            } catch (IOException ignored) {
+                if (request.method() != HttpMethod.GET) {
+                    respond(ctx, HttpResponseStatus.METHOD_NOT_ALLOWED, page(EmailConfig.INSTANCE.webVerificationPageMethodNotAllowedTitle, EmailConfig.INSTANCE.webVerificationPageMethodNotAllowedMessage, false));
+                    return;
+                }
+
+                QueryStringDecoder decoder = new QueryStringDecoder(request.uri());
+                List<String> tokenParam = decoder.parameters().get("token");
+                String token = tokenParam == null || tokenParam.isEmpty() ? null : tokenParam.get(0);
+                //single-use: the token is removed as soon as it's looked up, regardless of outcome
+                PendingWebVerification pending = token != null ? TOKENS.asMap().remove(token) : null;
+
+                if (pending == null) {
+                    respond(ctx, HttpResponseStatus.BAD_REQUEST, page(EmailConfig.INSTANCE.webVerificationPageInvalidTitle, EmailConfig.INSTANCE.webVerificationPageInvalidMessage, false));
+                    return;
+                }
+
+                PersistentUserData data = UserFileManager.get(pending.playerName());
+                if (data == null || !data.setEmail(pending.email())) {
+                    respond(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, page(EmailConfig.INSTANCE.webVerificationPageErrorTitle, EmailConfig.INSTANCE.webVerificationPageErrorNotFoundMessage, false));
+                    return;
+                }
+
+                respond(ctx, HttpResponseStatus.OK, page(EmailConfig.INSTANCE.webVerificationPageSuccessTitle, EmailConfig.INSTANCE.webVerificationPageSuccessMessage, true));
+            } catch (Exception e) {
+                AlixCommonMain.logWarning("Error handling a web verification request: " + e.getMessage());
+                respond(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, page(EmailConfig.INSTANCE.webVerificationPageErrorTitle, EmailConfig.INSTANCE.webVerificationPageErrorGenericMessage, false));
             }
         }
-    }
 
-    private static String queryParam(String rawQuery, String name) {
-        if (rawQuery == null) return null;
-        for (String part : rawQuery.split("&")) {
-            int eq = part.indexOf('=');
-            if (eq < 0) continue;
-            String key = URLDecoder.decode(part.substring(0, eq), StandardCharsets.UTF_8);
-            if (key.equals(name)) return URLDecoder.decode(part.substring(eq + 1), StandardCharsets.UTF_8);
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            AlixCommonMain.logWarning("Error handling a web verification connection: " + cause.getMessage());
+            ctx.close();
         }
-        return null;
-    }
 
-    private static void respond(HttpExchange exchange, int status, String html) throws IOException {
-        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
-        exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-        exchange.sendResponseHeaders(status, bytes.length);
-        try (var out = exchange.getResponseBody()) {
-            out.write(bytes);
+        private void respond(ChannelHandlerContext ctx, HttpResponseStatus status, String html) {
+            var content = Unpooled.copiedBuffer(html, CharsetUtil.UTF_8);
+            FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, content);
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html; charset=utf-8");
+            response.headers().set(HttpHeaderNames.CONTENT_LENGTH, content.readableBytes());
+            ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
     }
 

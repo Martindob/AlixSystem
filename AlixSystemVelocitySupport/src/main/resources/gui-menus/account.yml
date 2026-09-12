@@ -20,8 +20,8 @@
 #   name               - the item's display name. Supports "&"-color codes (e.g. &e, &l), raw
 #                         texture-pack "glyph" unicode characters (typed/pasted directly or as a
 #                         "\uXXXX" escape), and language-file references: a value starting with "@"
-#                         (e.g. "@gui-account-passwords") is looked up in the plugin's langs/*.yml
-#                         files instead of being literal text, so it follows the selected "language"
+#                         (e.g. "@gui-account-passwords") is looked up in the plugin's messages.properties/
+#                         langs/*.properties files instead of being literal text, so it follows the selected "language"
 #                         and works for every language you add a translation for.
 #   lore               - a list of lore lines (same rules as name; a single "@key" entry pulls a
 #                         whole multi-line lore block from the language file)

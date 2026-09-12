@@ -69,26 +69,34 @@ public final class LoginState implements VerifyState {
     public static final String termsUrl = config.getString("terms-url", "");
 
     private static final PacketSnapshot
-            REGISTER = (requirePasswordRepeatInRegister || requireEmailInRegister)
-            ? createLimboCommand("register", Messages.get("commands-register-password-arg"), registerSecondArgLabel())
-            : createLimboCommand("register", Messages.get("commands-register-password-arg")),
+            REGISTER = createRegisterCommand(),
             LOGIN = createLimboCommand("login", Messages.get("commands-login-password-arg")),
             LOGIN_AND_RECOVERY = createMultiCommand(
                     CustomCommand.of("recovery", Messages.get("commands-recovery-email-arg")),
                     CustomCommand.of("login", Messages.get("commands-login-password-arg")));
 
-    //Best-effort label for the second argument of the /register command hint shown to the client (the underlying hint packet only supports up to 2 named arguments,
-    // so when both the password-repeat and email options are enabled at once, a single combined label is shown; the exact expected format is still explained via the format-register-email message)
-    private static String registerSecondArgLabel() {
+    //The /register command hint shown to the client, matching whichever of 'require-password-repeat-in-
+    //register'/'require-email-in-register' are enabled - when both are on, this now shows all 3 arguments
+    //by their own real names (password, repeat password, email) via the general N-arg hint packet, rather
+    //than the single best-effort combined label ("repeat password / email") a 2-arg-only hint packet used
+    //to force this into.
+    private static PacketSnapshot createRegisterCommand() {
+        String password = Messages.get("commands-register-password-arg");
         if (requirePasswordRepeatInRegister && requireEmailInRegister)
-            return Messages.get("commands-register-password-second-arg") + " / " + Messages.get("commands-register-email-arg");
-        return requirePasswordRepeatInRegister
-                ? Messages.get("commands-register-password-second-arg")
-                : Messages.get("commands-register-email-arg");
+            return createLimboCommand("register", password, Messages.get("commands-register-password-second-arg"), Messages.get("commands-register-email-arg"));
+        if (requirePasswordRepeatInRegister)
+            return createLimboCommand("register", password, Messages.get("commands-register-password-second-arg"));
+        if (requireEmailInRegister)
+            return createLimboCommand("register", password, Messages.get("commands-register-email-arg"));
+        return createLimboCommand("register", password);
     }
 
     private static PacketSnapshot createMultiCommand(CustomCommand... commands) {
         return LimboCommand.constructMultiCommand(Arrays.asList(commands)).getPacketSnapshot();
+    }
+
+    private static PacketSnapshot createLimboCommand(String command, String arg1Name, String arg2Name, String arg3Name) {
+        return LimboCommand.construct(CommandsFileManager.getCommand(command).getLabels(), arg1Name, arg2Name, arg3Name).getPacketSnapshot();
     }
 
     private static PacketSnapshot createLimboCommand(String command, String arg1Name, String arg2Name) {

@@ -207,8 +207,7 @@ public final class PacketSnapshots {
         }
 
         if (server.getConfig().isUseJoinMessage()) {
-            PacketPlayOutMessage joinMessage = new PacketPlayOutMessage();
-            joinMessage.setMessage(server.getConfig().getJoinMessage());
+            PacketPlayOutMessage joinMessage = PacketPlayOutMessage.withMessage(server.getConfig().getJoinMessage());
             PACKET_JOIN_MESSAGE = PacketSnapshot.of(joinMessage);
         } else {
             PACKET_JOIN_MESSAGE = null;

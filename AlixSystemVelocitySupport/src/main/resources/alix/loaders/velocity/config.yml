@@ -154,7 +154,12 @@ after-any-premium-join-commands:
 #------------------------------------------------#
 
 #Config used to select the language of the messages sent to players
-#Defines the language of the messages file to load, from the "langs" folder found next to this config
+#Defines which messages file to load. "en" (the default) loads "messages.properties" - a normal,
+#freely-customizable file that (like this one) keeps your edits across plugin updates. Any other value
+#loads the matching bundled, ready-made translation from "langs/<code>.properties" instead (e.g. "cs" ->
+#langs/cs.properties) - these are NOT customizable: every plugin update fully overwrites them with the
+#newest bundled translation, discarding direct edits. If you want to customize player-facing text, keep
+#"language: en" and edit messages.properties instead.
 #Available: en (English), cs (Czech/Čeština)
 language: en
 

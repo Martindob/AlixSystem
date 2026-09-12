@@ -19,9 +19,20 @@ import java.util.function.BiFunction;
 
 public final class MessageWrapper {
 
+    //Used only to obtain an AdventureSerializer to parse a legacy '&'/'§'-formatted string into a Component -
+    //the exact version passed here is irrelevant for that direction: parsing legacy text into a Component
+    //doesn't downsample RGB/hex colors or otherwise vary per client version, only serializing a Component
+    //back to wire bytes does (handled downstream, per real client version, by createWrapper(Component, ...)
+    //below). Callers that only have a String and no Component yet should use parseLegacy() once, up front,
+    //rather than re-parsing the same string on every createWrapper(String, ...) call (see PacketPlayOutMessage).
+    private static final ServerVersion LEGACY_PARSE_VERSION = ServerVersion.V_1_19;
+
+    public static Component parseLegacy(String message) {
+        return AdventureSerializer.serializer(LEGACY_PARSE_VERSION.toClientVersion()).fromLegacy(message);
+    }
+
     public static PacketWrapper<?> createWrapper(String message, boolean actionBar, ServerVersion version) {
-        var component = AdventureSerializer.serializer(version.toClientVersion()).fromLegacy(message);//Component.text(message);
-        return createWrapper(component, actionBar, version);
+        return createWrapper(parseLegacy(message), actionBar, version);
     }
 
     public static PacketWrapper<?> createWrapper(Component message, boolean actionBar, ServerVersion version) {

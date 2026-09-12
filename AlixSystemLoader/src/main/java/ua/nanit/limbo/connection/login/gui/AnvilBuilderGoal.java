@@ -49,8 +49,10 @@ public enum AnvilBuilderGoal {
         }
     }
 
+    //Live, per-keystroke feedback (see AbstractAnvilBuilder#updateText) - checkBreach=false, since a real
+    //HIBP network call on every keystroke would be disastrous; the actual commit re-validates fully anyway.
     public String getInvalidityReason(String input) {
-        return AlixCommonUtils.getPasswordInvalidityReason(input, this.getLoginType());
+        return AlixCommonUtils.getPasswordInvalidityReason(input, this.getLoginType(), false);
     }
 
     public boolean indicateInvalid() {

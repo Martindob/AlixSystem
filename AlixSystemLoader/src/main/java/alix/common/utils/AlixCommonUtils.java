@@ -220,13 +220,25 @@ public final class AlixCommonUtils {
     }
 
     public static String getPasswordInvalidityReason(String password, LoginType type) {
+        return getPasswordInvalidityReason(password, type, true);
+    }
+
+    /**
+     * @param checkBreach whether to also run the (network-bound) HaveIBeenPwned breach check, if enabled.
+     *                    Pass false for live, as-you-type validation feedback (e.g. an Anvil GUI's per-
+     *                    keystroke valid/invalid item spoofing) - a real HTTP call on every keystroke would
+     *                    be disastrous even off the calling thread. The actual point of commit (register/
+     *                    change password) always re-validates with checkBreach=true regardless, so nothing
+     *                    is lost by skipping it here.
+     */
+    public static String getPasswordInvalidityReason(String password, LoginType type, boolean checkBreach) {
         if (type == LoginType.PIN) //if the login type is pin, ensure the password is also a pin - HIBP has no meaningful data on bare 4-digit PINs, so it's never checked for this type
             return isPIN(password) ? null : DoNotThrow.pinTypeInvalid;
 
         String reason = getInvalidityReason(password, false);
         if (reason != null) return reason;
 
-        if (checkBreachedPasswords && HibpChecker.isBreached(password))
+        if (checkBreach && checkBreachedPasswords && HibpChecker.isBreached(password))
             return DoNotThrow.passwordBreachedMessage;
 
         return null;

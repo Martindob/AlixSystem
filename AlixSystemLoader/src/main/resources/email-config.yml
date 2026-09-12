@@ -92,3 +92,16 @@ web-verification-token-expiry-minutes: 30
 # doesn't actually point at 'web-verification-bind-address'/'web-verification-port' (check your reverse proxy
 # config, if you're using one). The real end-to-end test is still to actually register/request a verification
 # email and click the real link it contains.
+#
+# The title/message shown on each outcome page below are plain text (no color codes) - this is a page
+# rendered in the player's own web browser, not an in-game message, so it isn't part of messages.properties/
+# the langs/*.properties files.
+web-verification-page-invalid-title: "Link invalid or expired"
+web-verification-page-invalid-message: "This verification link is no longer valid. Please request a new one in-game via /account sendverifyemail."
+web-verification-page-error-title: "Something went wrong"
+web-verification-page-error-not-found-message: "Your account could not be found or the email could not be saved. Please try again in-game."
+web-verification-page-error-generic-message: "Please try again in-game."
+web-verification-page-success-title: "Email verified!"
+web-verification-page-success-message: "Your email has been successfully verified. You can now close this page."
+web-verification-page-method-not-allowed-title: "Method not allowed"
+web-verification-page-method-not-allowed-message: "Only GET requests are supported."
