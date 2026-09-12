@@ -80,7 +80,7 @@ public final class PacketPlayOutShowDialog extends OutRetrooperPacket<WrapperPla
                 List.of(new Input("alix:password", new TextInputControl(200, Component.text(Messages.get("dialog-password-input-label")), true, "",
                         Password.MAX_PASSWORD_LEN, null)))),
                 List.of(new ActionButton(new CommonButtonData(Component.text(Messages.get("dialog-submit-button")), null, 150),
-                        new DynamicRunCommandAction(new DialogTemplate(commandName + " alix:password")))),
+                        new DynamicRunCommandAction(new DialogTemplate(commandName + " $(alix:password)")))),
                 null, 2);
     }
 }
