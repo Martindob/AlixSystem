@@ -8,6 +8,7 @@ import alix.common.messages.Messages;
 import alix.common.scheduler.AlixScheduler;
 import alix.common.utils.AlixCache;
 import alix.common.utils.AlixCommonUtils;
+import alix.common.utils.config.ConfigParams;
 import com.sun.mail.handlers.message_rfc822;
 import com.sun.mail.handlers.multipart_mixed;
 import com.sun.mail.handlers.text_html;
@@ -170,7 +171,15 @@ public final class EmailHandler {
                 sendEmail0(email, subject, content);
                 future.complete(null);
             } catch (EmailException e) {
-                AlixCommonMain.logWarning("Could not send email: " + e.getMessage());
+                //e.getMessage() alone is just "Sending the email to the following server failed : host:port" -
+                //the actual reason (wrong password, connection refused, TLS handshake failure...) is the
+                //cause, which was being silently swallowed, leaving no way to tell an auth failure apart
+                //from a firewalled port from this log line alone.
+                Throwable cause = e.getCause();
+                AlixCommonMain.logWarning("Could not send email: " + e.getMessage()
+                        + (cause != null ? " (" + cause + ")" : "")
+                        + (!ConfigParams.isDebugEnabled ? " - enable 'debug' in config.yml for the full stacktrace" : ""));
+                if (ConfigParams.isDebugEnabled) e.printStackTrace();
                 future.completeExceptionally(e);
             } catch (Exception e) {
                 future.completeExceptionally(e);
