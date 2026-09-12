@@ -13,6 +13,41 @@ val isUber = false
 group = "AlixSystemVelocitySupport"
 version = project.findProperty("alix-velocity-version")!!
 
+//The exact Velocity version LINE to compile against - bump this when PaperMC cuts a new major/minor
+//Velocity version (e.g. "4.2.0-SNAPSHOT"); the build number within it is always resolved to the newest
+//one available, so this never needs bumping just because PaperMC published another build.
+val velocityTargetVersion = "4.1.2-SNAPSHOT"
+
+//There's no publicly consumable Maven artifact exposing Velocity's internals (only the much smaller,
+//public "velocity-api" is published that way, which doesn't have what this plugin needs to hook into
+//Velocity's own netty/channel plumbing) - so this downloads the same server jar PaperMC's downloads page
+//itself offers, via their "Fill" API (https://fill.papermc.io/v3/projects/velocity), and uses it as a
+//compileOnly file dependency. Already-downloaded builds are cached under the Gradle user home (NOT inside
+//this project, so it's never picked up by git) and are never re-downloaded once present - a new PaperMC
+//build under 'velocityTargetVersion' simply gets a new file name, which naturally triggers a fresh
+//download next time this runs.
+fun resolveVelocityJar(): java.io.File {
+    val cacheDir = gradle.gradleUserHomeDir.resolve("caches/alix-velocity-jars")
+    cacheDir.mkdirs()
+
+    val json = groovy.json.JsonSlurper()
+    @Suppress("UNCHECKED_CAST")
+    val builds = json.parse(java.net.URI("https://fill.papermc.io/v3/projects/velocity/versions/$velocityTargetVersion/builds").toURL()) as List<Map<*, *>>
+    val latestBuild = builds.first()//newest build first, per PaperMC's own ordering
+    @Suppress("UNCHECKED_CAST")
+    val downloads = latestBuild["downloads"] as Map<*, *>
+    val download = downloads["server:default"] as Map<*, *>
+    val fileName = download["name"] as String
+    val url = download["url"] as String
+
+    val dest = cacheDir.resolve(fileName)
+    if (!dest.exists()) {
+        logger.lifecycle("Downloading Velocity $velocityTargetVersion build ${latestBuild["id"]} ($fileName) from PaperMC...")
+        java.net.URI(url).toURL().openStream().use { input -> dest.outputStream().use { output -> input.copyTo(output) } }
+    }
+    return dest
+}
+
 tasks.build {
     actions.clear()
     dependsOn(tasks.shadowJar)
@@ -91,14 +126,7 @@ dependencies {
     //compileOnly(files("$srcDir\\Geyser-Velocity.jar"))
     //compileOnly(files("$srcDir\\floodgate-velocity.jar"))
 
-    //Pulled straight from PaperMC's own Maven repo (already declared above) instead of a manually
-    //downloaded local jar - a SNAPSHOT coordinate is always re-resolved against PaperMC's latest published
-    //build for that version, so this stays current on its own. The plugin is meant to track the latest
-    //Velocity, not a version pinned in a comment: when PaperMC cuts a new version line (e.g. 4.2.0), bump
-    //the version string below rather than pinning back to something older.
-    compileOnly("com.velocitypowered:velocity-proxy:4.1.2-SNAPSHOT") {
-        isChanging = true
-    }
+    compileOnly(files(resolveVelocityJar()))
     /*compileOnly("org.geysermc.geyser:api:2.9.0-SNAPSHOT")
     compileOnly("org.geysermc.floodgate:api:2.2.4-SNAPSHOT")*/
 
