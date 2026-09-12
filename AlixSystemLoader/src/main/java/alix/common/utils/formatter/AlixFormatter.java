@@ -19,6 +19,9 @@ public final class AlixFormatter {
 
     public static String appendPrefix(String m) {
         return appendPrefix
+                && !m.isEmpty()//a blank spacer line should stay a genuinely blank line, not "<prefix> " with
+                //nothing after it - matches how e.g. LuckPerms' own console/chat output never tags its blank
+                //separator lines either
                 && !m.startsWith(messagePrefix)//quick-fix for my own mistakes
                 ? messagePrefix + m : m;
     }
