@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("java")
     id("com.gradleup.shadow") version "9.6.1"
@@ -32,7 +34,7 @@ fun resolveVelocityJar(): java.io.File {
 
     val json = groovy.json.JsonSlurper()
     @Suppress("UNCHECKED_CAST")
-    val builds = json.parse(java.net.URI("https://fill.papermc.io/v3/projects/velocity/versions/$velocityTargetVersion/builds").toURL()) as List<Map<*, *>>
+    val builds = json.parse(URI("https://fill.papermc.io/v3/projects/velocity/versions/$velocityTargetVersion/builds").toURL()) as List<Map<*, *>>
     val latestBuild = builds.first()//newest build first, per PaperMC's own ordering
     @Suppress("UNCHECKED_CAST")
     val downloads = latestBuild["downloads"] as Map<*, *>
@@ -43,7 +45,7 @@ fun resolveVelocityJar(): java.io.File {
     val dest = cacheDir.resolve(fileName)
     if (!dest.exists()) {
         logger.lifecycle("Downloading Velocity $velocityTargetVersion build ${latestBuild["id"]} ($fileName) from PaperMC...")
-        java.net.URI(url).toURL().openStream().use { input -> dest.outputStream().use { output -> input.copyTo(output) } }
+        URI(url).toURL().openStream().use { input: java.io.InputStream -> dest.outputStream().use { output -> input.copyTo(output) } }
     }
     return dest
 }
