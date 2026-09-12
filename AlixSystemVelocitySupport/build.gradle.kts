@@ -90,7 +90,15 @@ dependencies {
     val srcDir = project.findProperty("velocity-sources-dir")
     //compileOnly(files("$srcDir\\Geyser-Velocity.jar"))
     //compileOnly(files("$srcDir\\floodgate-velocity.jar"))
-    compileOnly(files("$srcDir\\velocity-3.5.0-SNAPSHOT-601.jar"))
+
+    //Pulled straight from PaperMC's own Maven repo (already declared above) instead of a manually
+    //downloaded local jar - a SNAPSHOT coordinate is always re-resolved against PaperMC's latest published
+    //build for that version, so this stays current on its own. The plugin is meant to track the latest
+    //Velocity, not a version pinned in a comment: when PaperMC cuts a new version line (e.g. 4.2.0), bump
+    //the version string below rather than pinning back to something older.
+    compileOnly("com.velocitypowered:velocity-proxy:4.1.2-SNAPSHOT") {
+        isChanging = true
+    }
     /*compileOnly("org.geysermc.geyser:api:2.9.0-SNAPSHOT")
     compileOnly("org.geysermc.floodgate:api:2.2.4-SNAPSHOT")*/
 
