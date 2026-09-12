@@ -10,7 +10,6 @@ import alix.common.packets.inventory.click.AlixClickType;
 import alix.common.packets.inventory.click.ContainerClickWrapper;
 import alix.common.packets.message.MessageWrapper;
 import alix.common.scheduler.AlixScheduler;
-import alix.common.utils.AlixCommonUtils;
 import alix.common.utils.collections.list.LoopList;
 import alix.common.utils.image.ImageGenerator;
 import alix.velocity.systems.packets.gui.AbstractAlixGUI;
@@ -122,7 +121,7 @@ public final class GoogleAuthGUI extends AlixGUI {
             }
         });
 
-        GUIItem applyChangesGuiItem = new GUIItem(applyChangesItem, event -> changes.tryApply(user, AlixCommonUtils.EMPTY_CONSUMER));
+        GUIItem applyChangesGuiItem = new GUIItem(applyChangesItem, event -> changes.tryApply(user));
 
         Map<String, GUIItem> internalItems = Map.of(
                 "back", backGuiItem,

@@ -145,6 +145,11 @@ dependencies {
 
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    //Newer Gradle no longer bundles this implicitly - without it, the test task can't even start the JUnit
+    //Platform test executor ("Failed to load JUnit Platform... including the JUnit Platform launcher"),
+    //regardless of whether there's anything to actually run (src/test/java here only holds SpigotMessagesMaker,
+    //a standalone dev script with main(), not a real JUnit test - see failOnNoDiscoveredTests below).
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     paperweight.paperDevBundle("1.21.4-R0.1-SNAPSHOT")
 
@@ -174,4 +179,5 @@ if (project.findProperty("enable-preview")!! == "true") {
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(Integer.parseInt(project.findProperty("toolchain-lang-version").toString())))
 tasks.test {
     useJUnitPlatform()
+    failOnNoDiscoveredTests = false
 }

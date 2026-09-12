@@ -44,6 +44,11 @@ dependencies {
 
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    //Newer Gradle no longer bundles this implicitly - without it, the test task can't even start the JUnit
+    //Platform test executor ("Failed to load JUnit Platform... including the JUnit Platform launcher"),
+    //regardless of whether there's anything to actually run (src/test/java here only holds standalone dev
+    //scripts with main(), not real JUnit tests - see failOnNoDiscoveredTests below).
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     compileOnly("net.kyori:adventure-api:4.18.0")
     compileOnly("net.kyori:adventure-nbt:4.18.0")
@@ -105,6 +110,10 @@ if (project.findProperty("enable-preview")!! == "true") {
 }
 tasks.test {
     useJUnitPlatform()
+    //src/test/java here only holds standalone dev utilities (TesterBCrypt, TesterCompressor - plain main()
+    //scripts run manually, never real JUnit tests), so there's nothing for this task to ever discover -
+    //without this, a newer Gradle treats that as a failure instead of a harmless no-op.
+    failOnNoDiscoveredTests = false
 }
 
 //Was missing entirely, unlike the root/Spigot/Velocity modules - meant this compiled with whatever JDK is
