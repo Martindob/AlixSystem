@@ -121,8 +121,8 @@ dependencies {
     //velocity already uses caffeine
     compileOnly("com.github.ben-manes.caffeine:caffeine:3.2.0")
 
-    compileOnly("org.projectlombok:lombok:1.18.36")
-    annotationProcessor("org.projectlombok:lombok:1.18.36")
+    compileOnly("org.projectlombok:lombok:1.18.48")
+    annotationProcessor("org.projectlombok:lombok:1.18.48")
 
     val srcDir = project.findProperty("velocity-sources-dir")
     //compileOnly(files("$srcDir\\Geyser-Velocity.jar"))

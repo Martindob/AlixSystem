@@ -138,8 +138,8 @@ dependencies {
     implementation("net.kyori:adventure-api:4.19.0")
     implementation("net.kyori:adventure-nbt:4.19.0")
 
-    compileOnlyApi("org.projectlombok:lombok:1.18.36")
-    annotationProcessor("org.projectlombok:lombok:1.18.36")
+    compileOnlyApi("org.projectlombok:lombok:1.18.48")
+    annotationProcessor("org.projectlombok:lombok:1.18.48")
 
     implementation("io.papermc:paperlib:1.0.7")
 

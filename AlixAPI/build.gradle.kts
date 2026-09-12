@@ -26,8 +26,8 @@ dependencies {
     compileOnly("io.netty:netty-all:4.1.24.Final")
     compileOnly("net.kyori:adventure-api:4.18.0")
 
-    compileOnlyApi("org.projectlombok:lombok:1.18.36")
-    annotationProcessor("org.projectlombok:lombok:1.18.36")
+    compileOnlyApi("org.projectlombok:lombok:1.18.48")
+    annotationProcessor("org.projectlombok:lombok:1.18.48")
 
     implementation("org.jetbrains:annotations:24.0.1")
     annotationProcessor("org.jetbrains:annotations:24.0.1")
