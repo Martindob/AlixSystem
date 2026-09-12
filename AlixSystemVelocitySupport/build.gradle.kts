@@ -161,6 +161,13 @@ if (project.findProperty("enable-preview")!! == "true") {
     }
 }
 
+//src/test/java here only holds standalone dev utilities (MessagesMaker, MessagesSyncTool - plain main()
+//scripts run manually, never real JUnit tests), so there's nothing for the 'test' task to ever discover -
+//without this, a newer Gradle treats that as a failure instead of a harmless no-op.
+tasks.test {
+    failOnNoDiscoveredTests = false
+}
+
 //This module alone can't just use the project's shared 'toolchain-lang-version' (21, matching Spigot's own
 //baseline) - PaperMC's own Velocity builds are themselves compiled targeting a newer JDK (build 27 of
 //4.1.2-SNAPSHOT ships class file version 69, i.e. Java 25), and an older JDK's javac can't read a newer
