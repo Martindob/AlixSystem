@@ -136,8 +136,13 @@ public final class LoginState implements VerifyState {
     //without first accepting the Terms & Conditions when 'require-terms-acceptance' is on. Callback-based
     //(rather than returning PersistentUserData directly) because the password validity check can involve a
     //real HaveIBeenPwned HTTP call - see AlixCommonUtils#getPasswordInvalidityReasonAsync - which must never
-    //block whatever thread (typically a Netty event-loop thread) calls this. The callback fires immediately,
-    //on the calling thread, whenever that HTTP call isn't needed (the overwhelming majority of calls).
+    //block whatever thread (typically a Netty event-loop thread) calls this.
+    //
+    //Guarantees the callback always runs on this connection's event loop, same as every caller could
+    //already assume back when this was fully synchronous - callers write to duplexHandler/PacketDuplexHandler
+    //from the callback all the time, and that asserts it's only ever touched from the event loop. Whenever
+    //the HTTP call isn't needed (the overwhelming majority of calls), that's still the calling thread,
+    //since it already had to be the event loop to reach here in the first place.
     public void registerIfValid(String password, LoginType type, Consumer<PersistentUserData> callback) {
         if (this.isTermsGateBlocking()) {
             this.sendTermsPrompt();
@@ -147,7 +152,7 @@ public final class LoginState implements VerifyState {
 
         //can be optimized by creating PacketSnapshots for constant messages
         @OptimizationCandidate
-        Consumer<String> onReason = reason -> {
+        Consumer<String> onReason = reason -> this.runOnEventLoop(() -> {
             if (reason != null) {
                 this.duplexHandler.write(SoundPackets.VILLAGER_NO);
                 this.sendMessage(reason);
@@ -155,8 +160,18 @@ public final class LoginState implements VerifyState {
             } else {
                 callback.accept(this.register0(password));
             }
-        };
+        });
         AlixCommonUtils.getPasswordInvalidityReasonAsync(password, type, onReason);
+    }
+
+    //Runs r immediately if already on this connection's event loop, otherwise schedules it there - needed
+    //whenever a callback (HaveIBeenPwned's HTTP check, FingerprintGateway) might complete on some other
+    //thread (a virtual thread doing the actual network work) but still needs to touch
+    //duplexHandler/PacketDuplexHandler afterward, which asserts it's only ever called from the event loop.
+    private void runOnEventLoop(Runnable r) {
+        var eventLoop = this.connection.getChannel().eventLoop();
+        if (eventLoop.inEventLoop()) r.run();
+        else eventLoop.execute(r);
     }
 
     private boolean isTermsGateBlocking() {
@@ -646,14 +661,14 @@ public final class LoginState implements VerifyState {
             return;
         }
 
-        FingerprintGateway.sendFingerprintingPacks(this.connection.getChannel(), correct -> {
+        FingerprintGateway.sendFingerprintingPacks(this.connection.getChannel(), correct -> this.runOnEventLoop(() -> {
             if (correct) {
                 this.sendMessage(Messages.getWithPrefix("email-recovery-success"));
                 this.tryLogIn();
             } else {
                 this.sendMessage(Messages.getWithPrefix("device-fingerprint-mismatch"));
             }
-        });
+        }));
     }
 
     public void openRecoveryEmailGui() {
@@ -768,7 +783,7 @@ public final class LoginState implements VerifyState {
         //PersistentUserData to run that check against yet (the account doesn't exist until the code below is
         //confirmed), and there's no reason to burn a real email send on a password that's going to be rejected
         //anyway.
-        AlixCommonUtils.getPasswordInvalidityReasonAsync(password, LoginType.COMMAND, reason -> {
+        AlixCommonUtils.getPasswordInvalidityReasonAsync(password, LoginType.COMMAND, reason -> this.runOnEventLoop(() -> {
             if (reason != null) {
                 this.duplexHandler.write(SoundPackets.VILLAGER_NO);
                 this.sendMessage(reason);
@@ -779,7 +794,7 @@ public final class LoginState implements VerifyState {
             this.pendingRegisterEmail = email;
             EmailHandler.sendVerifyMail(this.connection, email, false, (conn, msg) -> this.sendMessage(msg));
             this.sendMessage(Messages.getWithPrefix("register-email-verification-sent", email));
-        });
+        }));
     }
 
     //True while a 'require-email-in-register' registration is waiting on the player to confirm their email via
