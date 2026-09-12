@@ -599,24 +599,38 @@ public final class AlixSystemCommand {
         );
     }
 
-    // Lists every admin ("/as ...") subcommand along with a short description of what it does
+    // Lists every admin ("/as ...") subcommand along with a short description of what it does, grouped into
+    // sections rather than one flat, undifferentiated wall of red text - the previous layout had no header
+    // or grouping at all, making a 16-command list hard to scan for anything specific.
     private static void sendAdminCommandsList(CommandSource sender) {
         sendMessage(sender, "");
+        sendMessage(sender, Messages.get("admin-commands-header"));
+
+        sendMessage(sender, Messages.get("admin-commands-section-accounts"));
         sendMessage(sender, Messages.get("admin-commands-user"));
-        sendMessage(sender, Messages.get("admin-commands-panicmode"));
-        sendMessage(sender, Messages.get("admin-commands-save-all-local-to-db"));
-        sendMessage(sender, Messages.get("admin-commands-reload"));
-        sendMessage(sender, Messages.get("admin-commands-bypasslimit"));
-        sendMessage(sender, Messages.get("admin-commands-bypasslimit-remove"));
         sendMessage(sender, Messages.get("admin-commands-resetpassword"));
         sendMessage(sender, Messages.get("admin-commands-resetpassword-type"));
         sendMessage(sender, Messages.get("admin-commands-changepassword"));
         sendMessage(sender, Messages.get("admin-commands-fullyremovedata"));
         sendMessage(sender, Messages.get("admin-commands-resetstatus"));
         sendMessage(sender, Messages.get("admin-commands-forcestatus"));
+        sendMessage(sender, Messages.get("admin-commands-bypasslimit"));
+        sendMessage(sender, Messages.get("admin-commands-bypasslimit-remove"));
+        sendMessage(sender, "");
+
+        sendMessage(sender, Messages.get("admin-commands-section-security"));
+        sendMessage(sender, Messages.get("admin-commands-panicmode"));
         sendMessage(sender, Messages.get("admin-commands-ufw"));
+        sendMessage(sender, "");
+
+        sendMessage(sender, Messages.get("admin-commands-section-email"));
         sendMessage(sender, Messages.get("admin-commands-sendverifyemail"));
         sendMessage(sender, Messages.get("admin-commands-verifyemail"));
+        sendMessage(sender, "");
+
+        sendMessage(sender, Messages.get("admin-commands-section-server"));
+        sendMessage(sender, Messages.get("admin-commands-save-all-local-to-db"));
+        sendMessage(sender, Messages.get("admin-commands-reload"));
         sendMessage(sender, Messages.get("admin-commands-commands"));
         sendMessage(sender, "");
     }
