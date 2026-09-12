@@ -161,10 +161,14 @@ if (project.findProperty("enable-preview")!! == "true") {
     }
 }
 
-//Was missing entirely, unlike the root/Spigot module - meant this compiled with whatever JDK is running
-//the Gradle daemon itself instead of the project's intended version, which crashes Lombok's annotation
-//processor on a sufficiently new daemon JDK (see AlixSystemLoader's build.gradle.kts for the exact error).
-java.toolchain.languageVersion.set(JavaLanguageVersion.of(Integer.parseInt(project.findProperty("toolchain-lang-version").toString())))
+//This module alone can't just use the project's shared 'toolchain-lang-version' (21, matching Spigot's own
+//baseline) - PaperMC's own Velocity builds are themselves compiled targeting a newer JDK (build 27 of
+//4.1.2-SNAPSHOT ships class file version 69, i.e. Java 25), and an older JDK's javac can't read a newer
+//one's class files at all ("class file has wrong version"). Since the plugin is meant to always track
+//PaperMC's latest Velocity build (see resolveVelocityJar() above), this needs to track whatever JDK
+//baseline that latest build itself requires, independently of the rest of the project - bump this if a
+//future Velocity build moves to something newer still.
+java.toolchain.languageVersion.set(JavaLanguageVersion.of(Integer.parseInt(project.findProperty("velocity-toolchain-lang-version") as? String ?: "25")))
 
 /*
 publishing {

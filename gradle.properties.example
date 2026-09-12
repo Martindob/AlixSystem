@@ -16,6 +16,10 @@ packet-events-version=2.13.1-SNAPSHOT
 
 toolchain-lang-version=21
 enable-preview=false
+#Only needed if you want to override which JDK AlixSystemVelocitySupport itself compiles with - it defaults
+#to 25 on its own (see that module's build.gradle.kts) since PaperMC's latest Velocity builds require it,
+#independently of toolchain-lang-version above (which the rest of the project, e.g. Spigot, still uses).
+#velocity-toolchain-lang-version=25
 
 #Gradle
 org.gradle.warning.mode=none
