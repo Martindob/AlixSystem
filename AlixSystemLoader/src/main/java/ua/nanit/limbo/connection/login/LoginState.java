@@ -28,7 +28,6 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import ua.nanit.limbo.NanoLimbo;
 import ua.nanit.limbo.commands.LimboCommand;
 import ua.nanit.limbo.connection.ClientConnection;
 import ua.nanit.limbo.connection.VerifyState;
@@ -40,7 +39,6 @@ import ua.nanit.limbo.connection.login.packets.SoundPackets;
 import ua.nanit.limbo.connection.pipeline.PacketDuplexHandler;
 import ua.nanit.limbo.protocol.PacketOut;
 import ua.nanit.limbo.protocol.packets.play.PacketPlayOutMessage;
-import ua.nanit.limbo.protocol.packets.play.dialog.PacketPlayOutShowDialog;
 import ua.nanit.limbo.protocol.packets.play.config.PacketPlayInReconfigureAck;
 import ua.nanit.limbo.protocol.packets.play.disconnect.PacketPlayOutDisconnect;
 import ua.nanit.limbo.protocol.packets.play.inventory.PacketPlayInClickSlot;
@@ -344,8 +342,8 @@ public final class LoginState implements VerifyState {
     }
 
     private void writeCommands() {
-        if (NanoLimbo.enableDialogLogin && PacketPlayOutShowDialog.write(this.connection, this.isRegistered))
-            return;
+        /*if (PacketPlayOutShowDialog.write(this.connection))
+            return;*/
 
         if (this.version().moreOrEqual(Version.V1_13)) {
             if (this.data != null && this.data.canUseEmailRecovery()) {
