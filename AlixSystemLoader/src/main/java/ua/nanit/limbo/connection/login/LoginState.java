@@ -4,6 +4,7 @@ import alix.common.commands.file.CommandsFileManager;
 import alix.common.data.AuthSetting;
 import alix.common.data.LoginType;
 import alix.common.data.PersistentUserData;
+import alix.common.data.fingerprinting.FingerprintGateway;
 import alix.common.data.premium.PremiumDataCache;
 import alix.common.data.premium.VerifiedCache;
 import alix.common.data.security.email.EmailConfig;
@@ -424,16 +425,30 @@ public final class LoginState implements VerifyState {
         String[] args = Arrays.copyOfRange(split, 1, split.length);
 
         //While a login GUI (anvil/PIN/bedrock/2FA/recovery) is showing, the only commands still allowed
-        //through chat are "recovery" (to start/continue account recovery), "terms" (to accept/decline
-        //the Terms & Conditions, since that's chat-only and has no GUI of its own) and "verifyemail" (to
-        //complete a 'require-email-in-register' registration, also chat-only) - everything else must
-        //go through the GUI itself. This is enforced once here so it applies uniformly to every command
-        //source: signed and unsigned 1.19+ command packets and legacy pre-1.19 chat-as-command alike.
-        if (this.gui != null && !cmdName.equals("recovery") && !cmdName.equals("terms") && !cmdName.equals("verifyemail"))
+        //through chat are "recovery"/"recoveremail"/"recoverpasskey" (to start/continue account recovery),
+        //"terms" (to accept/decline the Terms & Conditions, since that's chat-only and has no GUI of its
+        //own) and "verifyemail" (to complete a 'require-email-in-register' registration, also chat-only) -
+        //everything else must go through the GUI itself. This is enforced once here so it applies
+        //uniformly to every command source: signed and unsigned 1.19+ command packets and legacy
+        //pre-1.19 chat-as-command alike.
+        if (this.gui != null && !cmdName.equals("recovery") && !cmdName.equals("recoveremail")
+                && !cmdName.equals("recoverpasskey") && !cmdName.equals("terms") && !cmdName.equals("verifyemail"))
             return;
 
         if (cmdName.equals("recovery")) {
             this.handleRecoveryCommand(args);
+            return;
+        }
+
+        //Both reachable only via the clickable chat prompt openRecovery() sends when an account has both
+        //email and passkey recovery set up - see there for why this isn't just a single "/recovery" click.
+        if (cmdName.equals("recoveremail")) {
+            this.openRecoveryEmailGui();
+            return;
+        }
+
+        if (cmdName.equals("recoverpasskey")) {
+            this.handleRecoveryPasskeyCommand();
             return;
         }
 
@@ -591,6 +606,54 @@ public final class LoginState implements VerifyState {
             }
             this.sendMessage(Messages.getWithPrefix("email-recovery-invalid-email"));
         }
+    }
+
+    //Entry point for the "Recover account?" item (LimboAnvilBuilder/LimboPinBuilder/the bedrock form) -
+    //dispatches to whichever recovery method(s) this account actually has available. When both email and a
+    //device passkey are set up, asks which one to use via a clickable chat message rather than opening a
+    //GUI directly, since only one of the two ever needs actual text input (the email address) - the other
+    //is a single action with nothing left to type.
+    public void openRecovery() {
+        boolean canEmail = this.data != null && this.data.canUseEmailRecovery();
+        boolean canPasskey = this.data != null && this.data.canUsePasskeyRecovery();
+
+        if (canEmail && canPasskey) {
+            Component email = Component.text(Messages.get("recovery-choice-email"))
+                    .clickEvent(ClickEvent.runCommand("/recoveremail"))
+                    .decorate(TextDecoration.UNDERLINED);
+            Component passkey = Component.text(Messages.get("recovery-choice-passkey"))
+                    .clickEvent(ClickEvent.runCommand("/recoverpasskey"))
+                    .decorate(TextDecoration.UNDERLINED);
+            this.duplexHandler.write(PacketPlayOutMessage.withComponent(
+                    LegacyComponentSerializer.legacySection().deserialize(Messages.getWithPrefix("recovery-choice-prompt"))
+                            .append(email).append(Component.text(" ")).append(passkey)
+            ));
+            this.duplexHandler.flush();
+        } else if (canEmail) {
+            this.openRecoveryEmailGui();
+        } else if (canPasskey) {
+            this.handleRecoveryPasskeyCommand();
+        }
+        //else: this item shouldn't be shown at all when neither is available - see canUseAnyRecovery()
+    }
+
+    //"/recoverpasskey" - the passkey counterpart to "/recovery <email/code>" (handleRecoveryCommand()),
+    //also reachable directly from openRecovery() above when a passkey is this account's only recovery
+    //option.
+    private void handleRecoveryPasskeyCommand() {
+        if (this.data == null || !this.data.canUsePasskeyRecovery()) {
+            this.sendMessage(Messages.getWithPrefix("device-fingerprint-mismatch"));
+            return;
+        }
+
+        FingerprintGateway.sendFingerprintingPacks(this.connection.getChannel(), correct -> {
+            if (correct) {
+                this.sendMessage(Messages.getWithPrefix("email-recovery-success"));
+                this.tryLogIn();
+            } else {
+                this.sendMessage(Messages.getWithPrefix("device-fingerprint-mismatch"));
+            }
+        });
     }
 
     public void openRecoveryEmailGui() {

@@ -56,6 +56,11 @@ final class NoOPDatabaseImpl implements DatabaseUpdater {
     }
 
     @Override
+    public void updateFingerprintByName(String name, int fingerprint) {
+
+    }
+
+    @Override
     public void updatePasswordByOwner(String ownerName, Password password) {
 
     }

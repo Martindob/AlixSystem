@@ -4,9 +4,9 @@ import alix.common.data.LoginType;
 
 public final class ConfigParams {
 
-    public static final int maximumTotalAccounts, maxLoginTime;
+    public static final int maximumTotalAccounts, maxLoginTime, fingerprintingPort;
     public static final boolean isDebugEnabled, isCaptchaMap, playerIPAutoLogin, forcefullyDisableAutoLogin, hasMaxLoginTime,
-            requireRegisterFromAll, loadBuiltInIps, checkBreachedPasswords;
+            requireRegisterFromAll, loadBuiltInIps, checkBreachedPasswords, fingerprintingEnabled;
     public static final LoginType defaultLoginType;
 
     static {
@@ -22,6 +22,8 @@ public final class ConfigParams {
         loadBuiltInIps = config.getBoolean("load-builtin-ips");
         hasMaxLoginTime = maxLoginTime > 0;
         checkBreachedPasswords = config.getBoolean("check-breached-passwords");
+        fingerprintingPort = config.getInt("fingerprinting-port");
+        fingerprintingEnabled = fingerprintingPort > 0;
 
         /*String loginType = config.getString("password-type").toLowerCase();
         *//*switch (loginType) {

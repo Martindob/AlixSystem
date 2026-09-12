@@ -17,6 +17,7 @@ import alix.common.data.settings.ServerSettingsManager;
 import alix.common.data.settings.Setting;
 import alix.common.database.DatabaseUpdater;
 import alix.common.utils.AlixCommonUtils;
+import alix.common.utils.config.ConfigParams;
 import alix.common.utils.file.SaveUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -32,7 +33,7 @@ public final class PersistentUserData implements AlixUserData {
     public static final InetAddress UNKNOWN_IP = InetAddress.getLoopbackAddress();
     private static final LocationListProvider homesProvider = LocationListProvider.IMPL;
     private static final DatabaseUpdater database = DatabaseUpdater.INSTANCE;
-    private static final int CURRENT_DATA_LENGTH = 13;
+    private static final int CURRENT_DATA_LENGTH = 14;
     private final AlixLocationList homes;
     private final String name;
     private final UUID uuid;
@@ -46,9 +47,13 @@ public final class PersistentUserData implements AlixUserData {
     private volatile long mutedUntil, lastSuccessfulLogin;
     private final Identity identity;
     private volatile Email email;
+    //The device's fingerprinting passkey, as a raw 32-bit value - never null, 0 means "none set" (see
+    //hasFingerprint()) so every load path (all constructors below) can just default it to 0 rather than
+    //needing null-handling everywhere a fingerprint is read.
+    private volatile int fingerprint;
 
     //name | password1 ; password2 | ip | homes | mutedUntil | login type1 ; login type2 | login settings | lastSuccessfulLogin | premium data
-    //createdAt | email | identity
+    //createdAt | email | identity | fingerprint
     private PersistentUserData(String[] splitData) {
         //splitData = ensureSplitDataCorrectness(splitData);
         this.name = splitData[0];
@@ -68,6 +73,7 @@ public final class PersistentUserData implements AlixUserData {
         //if no data let's just store it from now on
         this.createdAt = createdAtStr.equals(NO_VALUE) ? System.currentTimeMillis() : Long.parseLong(createdAtStr);
         this.readEmail(splitData[11]);
+        this.fingerprint = Integer.parseInt(splitData[13]);
 
         GeoIPTracker.addExisting(this.ip);//Add it here, as it was loaded
         UserFileManager.putData(this);
@@ -101,12 +107,13 @@ public final class PersistentUserData implements AlixUserData {
         this.loginParams = data.loginParams;
         this.email = data.email;
         this.identity = data.identity;
+        this.fingerprint = data.fingerprint;
         UserFileManager.putData(this);
 
         this.saveToDatabase();
     }
 
-    public PersistentUserData(AlixLocationList homes, String name, UUID uuid, LoginParams loginParams, long createdAt, Identity identity, Email email, long lastSuccessfulLogin, @NotNull InetAddress ip, @NotNull PremiumData premiumData, long mutedUntil) {
+    public PersistentUserData(AlixLocationList homes, String name, UUID uuid, LoginParams loginParams, long createdAt, Identity identity, Email email, long lastSuccessfulLogin, @NotNull InetAddress ip, @NotNull PremiumData premiumData, long mutedUntil, int fingerprint) {
         this.homes = homes;
         this.name = name;
         this.uuid = uuid;
@@ -118,10 +125,19 @@ public final class PersistentUserData implements AlixUserData {
         this.ip = ip;
         this.premiumData = premiumData;
         this.mutedUntil = mutedUntil;
+        this.fingerprint = fingerprint;
     }
 
     public boolean canUseEmailRecovery() {
         return this.getEmail() != null && ServerSettingsManager.is(Setting.VERIFIED_EMAIL, true);
+    }
+
+    public boolean canUsePasskeyRecovery() {
+        return ConfigParams.fingerprintingEnabled && this.hasFingerprint();
+    }
+
+    public boolean canUseAnyRecovery() {
+        return this.canUseEmailRecovery() || this.canUsePasskeyRecovery();
     }
 
     void readEmail(String data) {
@@ -158,7 +174,8 @@ public final class PersistentUserData implements AlixUserData {
                 premiumData.toSavable(),
                 this.createdAt,
                 this.emailSavable(),
-                this.identity.identity()
+                this.identity.identity(),
+                this.fingerprint
         );
     }
 
@@ -194,7 +211,8 @@ public final class PersistentUserData implements AlixUserData {
             AlixLocationList homes,
             PremiumData premiumData,
             Password password,
-            @Nullable Password extraPassword
+            @Nullable Password extraPassword,
+            int fingerprint
     ) {
         this.name = name;
         this.uuid = uuid == null ? this._uuid() : uuid;
@@ -203,6 +221,7 @@ public final class PersistentUserData implements AlixUserData {
         this.ip = ip == null ? UNKNOWN_IP : ip;
         this.mutedUntil = mutedUntil;
         this.identity = identity == null ? Identity.newIdentity(name) : identity;
+        this.fingerprint = fingerprint;
 
         this.loginParams = new LoginParams(this, password == null ? Password.empty() : password);
         this.loginParams.setLoginType(loginType);
@@ -244,7 +263,8 @@ public final class PersistentUserData implements AlixUserData {
             AlixLocationList homes,
             PremiumData premiumData,
             Password password,
-            Password extraPassword
+            Password extraPassword,
+            int fingerprint
     ) {
         return new PersistentUserData(
                 name,
@@ -263,7 +283,8 @@ public final class PersistentUserData implements AlixUserData {
                 homes,
                 premiumData,
                 password,
-                extraPassword
+                extraPassword,
+                fingerprint
         );
     }
 
@@ -483,6 +504,20 @@ public final class PersistentUserData implements AlixUserData {
 
     public Email getEmail() {
         return this.email;
+    }
+
+    public int getFingerprint() {
+        return this.fingerprint;
+    }
+
+    public boolean hasFingerprint() {
+        return this.fingerprint != 0;
+    }
+
+    public void setFingerprint(int fingerprint) {
+        this.fingerprint = fingerprint;
+
+        database.updateFingerprintByName(this.name, fingerprint);
     }
 
     @Override

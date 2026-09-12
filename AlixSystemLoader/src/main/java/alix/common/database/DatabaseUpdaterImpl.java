@@ -48,6 +48,14 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
                 st.execute(CREATE_USERS_SQL(this.getType()));
                 st.execute(CREATE_PASSWORDS_SQL(this.getType()));
                 st.execute(CREATE_TOKENS_SQL(this.getType()));
+
+                //a fresh table already has the column via CREATE_USERS_SQL above - this only matters for a
+                //table that pre-dates the 'fingerprint' column being introduced
+                try {
+                    st.execute(ADD_FINGERPRINT_COLUMN_SQL(this.getType()));
+                } catch (SQLException ignored) {
+                    //older engine without "ADD COLUMN IF NOT EXISTS" support and the column already exists
+                }
             }
         });
     }
@@ -175,6 +183,7 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
 
         int premiumStatus = rs.getInt(i++);
         String premiumUuid = rs.getString(i++);
+        int fingerprint = rs.getInt(i++);
 
         Password mainPassword = readPassword(rs, i);
         i += 4;
@@ -203,7 +212,8 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
                 homes,
                 premiumData,
                 mainPassword,
-                extraPassword
+                extraPassword,
+                fingerprint
         );
     }
 
@@ -375,6 +385,8 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
                 setUuid(ps, i++, null);
             }
 
+            ps.setInt(i++, data.getFingerprint());
+
             ps.executeUpdate();
         }
     }
@@ -460,6 +472,17 @@ final class DatabaseUpdaterImpl implements DatabaseUpdater {
         this.queryAsync(name, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(UPDATE_USERS_IP_SQL)) {
                 ps.setString(1, ip);
+                ps.setString(2, name);
+                ps.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void updateFingerprintByName(String name, int fingerprint) {
+        this.queryAsync(name, connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(UPDATE_FINGERPRINT_BY_NAME)) {
+                ps.setInt(1, fingerprint);
                 ps.setString(2, name);
                 ps.executeUpdate();
             }

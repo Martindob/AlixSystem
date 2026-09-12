@@ -10,6 +10,8 @@
 #   ip-autologin    - toggles IP auto-login on/off
 #   email-recovery   - shows whether an email is set (informational only; only appears at all
 #                       if email-based account recovery is enabled on this server)
+#   device-passkey    - creates/replaces this device's fingerprinting passkey; only appears at all
+#                       if 'fingerprinting-port' is set in config.yml
 #   back              - returns to the menu that opened this one
 #
 # You can also add your own purely decorative or generic-action items anywhere else in the
@@ -35,6 +37,7 @@ background.name: "&f"
 item-order:
   - ip-autologin
   - email-recovery
+  - device-passkey
   - back
 
 items.ip-autologin.slot: default_of(0)
@@ -42,6 +45,9 @@ items.ip-autologin.internal: ip-autologin
 
 items.email-recovery.slot: default_of(1)
 items.email-recovery.internal: email-recovery
+
+items.device-passkey.slot: default_of(2)
+items.device-passkey.internal: device-passkey
 
 items.back.slot: default_of(8)
 items.back.internal: back

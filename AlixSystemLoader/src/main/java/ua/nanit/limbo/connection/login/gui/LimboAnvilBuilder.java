@@ -19,11 +19,11 @@ public final class LimboAnvilBuilder extends AbstractAnvilBuilder<LimboAnvilBuil
 
     public LimboAnvilBuilder(ClientConnection connection, PersistentUserData data, LoginState loginState, AnvilBuilderGoal goal) {
         super(connection.getChannel(), connection.getClientVersion(), goal, self -> self.connection.getDuplexHandler().flush(),
-                data != null && data.canUseEmailRecovery());
+                data != null && data.canUseAnyRecovery());
         this.connection = connection;
         this.isRegistered = PersistentUserData.isRegistered(data);
         this.loginState = loginState;
-        this.hasRecovery = data != null && data.canUseEmailRecovery();
+        this.hasRecovery = data != null && data.canUseAnyRecovery();
     }
 
     @Override
@@ -55,7 +55,7 @@ public final class LimboAnvilBuilder extends AbstractAnvilBuilder<LimboAnvilBuil
                 return;
             default:
                 if (slot == RECOVER_SLOT && this.hasRecovery) {
-                    this.loginState.openRecoveryEmailGui();
+                    this.loginState.openRecovery();
                 }
         }
     }

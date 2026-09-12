@@ -144,6 +144,9 @@ gui-ip-autologin-reject: &cREJECT
 gui-ip-autologin-what-is-this: &7This gui asks whether you'd -nl &7like to be automatically logged in -nl &7if you join with the same IP, -nl &7 as your previous successful login.
 gui-login-settings-ip-autologin-off: &cIP AutoLogin: OFF
 gui-login-settings-ip-autologin-on: &aIP AutoLogin: ON
+gui-login-settings-device-passkey-on: &aDevice PassKey: ON
+gui-login-settings-device-passkey-off: &cDevice PassKey: OFF
+device-fingerprint-mismatch: &cThis device's passkey does not match the one on file.
 gui-overall-go-back: &6Go Back
 gui-password-try-apply-data-fail-main-not-pin: &cYou need to change your MAIN password to a PIN!
 gui-password-try-apply-data-fail-main-pin: &cYou need to change your MAIN password to a longer one if you wish to switch from a PIN password!

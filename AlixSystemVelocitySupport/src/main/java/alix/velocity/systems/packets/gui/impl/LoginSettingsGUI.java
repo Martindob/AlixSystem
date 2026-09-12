@@ -1,11 +1,13 @@
 package alix.velocity.systems.packets.gui.impl;
 
 import alix.common.data.PersistentUserData;
+import alix.common.data.fingerprinting.FingerprintGateway;
 import alix.common.data.settings.ServerSettingsManager;
 import alix.common.data.settings.Setting;
 import alix.common.messages.Messages;
 import alix.common.packets.inventory.AlixInventoryType;
 import alix.common.scheduler.AlixScheduler;
+import alix.common.utils.config.ConfigParams;
 import alix.velocity.systems.packets.gui.AbstractAlixGUI;
 import alix.velocity.systems.packets.gui.AlixGUI;
 import alix.velocity.systems.packets.gui.GUIItem;
@@ -30,10 +32,13 @@ public final class LoginSettingsGUI extends AlixGUI {
             IP_AUTOLOGIN_ON = create(ItemTypes.GREEN_CONCRETE, Messages.get("gui-login-settings-ip-autologin-on")),
             IP_AUTOLOGIN_OFF = create(ItemTypes.RED_CONCRETE, Messages.get("gui-login-settings-ip-autologin-off")),
             EMAIL_RECOVERY_ON = create(ItemTypes.GREEN_CONCRETE, Messages.get("gui-login-settings-email-recovery-on"), Messages.get("gui-login-settings-email-recovery-on-lore").split(" -nl ")),
-            EMAIL_RECOVERY_OFF = create(ItemTypes.RED_CONCRETE, Messages.get("gui-login-settings-email-recovery-off"), Messages.get("gui-login-settings-email-recovery-off-lore").split(" -nl "));
+            EMAIL_RECOVERY_OFF = create(ItemTypes.RED_CONCRETE, Messages.get("gui-login-settings-email-recovery-off"), Messages.get("gui-login-settings-email-recovery-off-lore").split(" -nl ")),
+            DEVICE_PASSKEY_ON = create(ItemTypes.GREEN_CONCRETE, Messages.get("gui-login-settings-device-passkey-on"), Messages.get("gui-login-settings-device-passkey-on-lore").split(" -nl ")),
+            DEVICE_PASSKEY_OFF = create(ItemTypes.RED_CONCRETE, Messages.get("gui-login-settings-device-passkey-off"), Messages.get("gui-login-settings-device-passkey-off-lore").split(" -nl "));
 
     private static final Function<PersistentUserData, ItemStack> IP_AUTOLOGIN_GET = data -> data.getLoginParams().getIpAutoLogin() ? IP_AUTOLOGIN_ON : IP_AUTOLOGIN_OFF;
     private static final Function<PersistentUserData, ItemStack> EMAIL_RECOVERY_GET = data -> data.getEmail() != null ? EMAIL_RECOVERY_ON : EMAIL_RECOVERY_OFF;
+    private static final Function<PersistentUserData, ItemStack> DEVICE_PASSKEY_GET = data -> data.hasFingerprint() ? DEVICE_PASSKEY_ON : DEVICE_PASSKEY_OFF;
 
     static {
         if (forcefullyDisableIpAutoLogin)
@@ -70,6 +75,17 @@ public final class LoginSettingsGUI extends AlixGUI {
         if (ServerSettingsManager.is(Setting.VERIFIED_EMAIL, true)) {
             //Email changes require chat input rather than a direct GUI toggle - this button is informational only.
             internalItems.put("email-recovery", new GUIItem(EMAIL_RECOVERY_GET.apply(data)));
+        }
+
+        if (ConfigParams.fingerprintingEnabled) {
+            int[] devicePasskeySlots = menu.getSlotsForInternal("device-passkey");
+            GUIItem devicePasskeyGuiItem = new GUIItem(DEVICE_PASSKEY_GET.apply(data), event ->
+                    FingerprintGateway.sendFingerprintingPacks(user.getChannel(), success -> {
+                        if (!success) return;
+                        ItemStack updated = DEVICE_PASSKEY_GET.apply(data);
+                        for (int slot : devicePasskeySlots) gui.setItem(slot, updated);
+                    }));
+            internalItems.put("device-passkey", devicePasskeyGuiItem);
         }
 
         return MenuBuilder.build(menu, size, this.user, internalItems);

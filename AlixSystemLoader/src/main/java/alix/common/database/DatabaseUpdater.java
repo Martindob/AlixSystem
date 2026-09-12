@@ -52,6 +52,8 @@ public interface DatabaseUpdater {
 
     void updateIpByName(String name, String ip);
 
+    void updateFingerprintByName(String name, int fingerprint);
+
     void updatePasswordByOwner(String ownerName, Password password);
 
     void setPremiumData(String name, PremiumData data);

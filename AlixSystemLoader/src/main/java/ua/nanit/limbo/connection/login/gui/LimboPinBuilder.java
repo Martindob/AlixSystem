@@ -77,7 +77,7 @@ public final class LimboPinBuilder implements LimboGUI {
         this.data = data;
         this.loginState = loginState;
         this.items = new ArrayList<>(Arrays.asList(pinVerificationGuiItems));
-        if (data != null && data.canUseEmailRecovery()) {
+        if (data != null && data.canUseAnyRecovery()) {
             this.items.set(ACTION_RECOVER, RECOVER_ITEM);
             this.spoofWithSnapshot = false;
         } else {
@@ -212,8 +212,8 @@ public final class LimboPinBuilder implements LimboGUI {
             return false;
         }
 
-        if (slot == ACTION_RECOVER && this.data != null && this.data.canUseEmailRecovery()) {
-            this.loginState.openRecoveryEmailGui();
+        if (slot == ACTION_RECOVER && this.data != null && this.data.canUseAnyRecovery()) {
+            this.loginState.openRecovery();
             return false;
         }
 
