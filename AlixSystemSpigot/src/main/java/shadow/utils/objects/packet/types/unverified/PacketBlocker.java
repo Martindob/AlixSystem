@@ -576,7 +576,7 @@ public class PacketBlocker implements PacketProcessor {
     //algorithms could be somewhat heavy
     private void processCommand(char[] cmd) {
         if (this.user.isGUIUser()) {
-            this.user.writeDynamicMessageSilently(MessageWrapper.parseLegacy("&cError - Cannot input command cuz you're using a GUI for login!"));
+            this.user.writeDynamicMessageSilently(MessageWrapper.parseLegacy("§cError - Cannot input command cuz you're using a GUI for login!"));
             this.user.flush();
             return;
 
